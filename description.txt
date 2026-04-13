@@ -19,6 +19,12 @@ Features
   sentences on the PDF.
 - Auto-Resume: Automatically detect and offer to resume from the last reading
   position.
+- Bookmark Export/Import: Export all bookmarks (across every PDF) as a JSON
+  file download; import a saved file to merge bookmarks back without
+  overwriting existing entries.
+- View Mode Toggle: Switch between Fit Page (800px max-width) and Fit Width
+  (full screen width) layouts; in Fit Width mode the view auto-scrolls to keep
+  the currently reading sentence visible.
 
 Tech Stack
 ----------
@@ -33,5 +39,23 @@ Architecture
 The entire application is contained in a single index.html file. It uses canvas
 elements for PDF rendering and highlighting, with localStorage for persistence.
 The interface includes a top control bar (collapsible in Focus mode), a main
-content area with the PDF canvas, a sentence ticker for audio feedback, and a
-bottom control panel with playback and navigation buttons.
+content area with the PDF canvas, a sentence ticker for audio feedback, and
+floating action buttons for exiting focus mode and controlling playback.
+
+Changelog
+---------
+v1.1
+- Moved the Save Bookmark button from the bottom controls to the top bar,
+  next to the Bookmarks button.
+- Added Export (⬇) and Import (⬆) buttons inside the bookmarks sheet to
+  save/load all bookmarks across all PDFs as a JSON file. Import merges new
+  entries without removing existing ones.
+- Added a play/pause floating action button (FAB) in the bottom-right corner
+  that is visible only in Focus mode, matching the state colour of the main
+  play button (red = stopped, purple = paused, dark red = playing).
+
+v1.2
+- Added a Fit Width / Fit Page toggle button in the top bar. Fit Page
+  (default) constrains the PDF to 800px wide; Fit Width removes that cap so
+  the PDF fills the full screen width. In Fit Width mode the view
+  automatically scrolls to keep the highlighted/reading sentence in view.
