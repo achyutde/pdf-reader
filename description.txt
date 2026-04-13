@@ -1,0 +1,37 @@
+PDF Reader
+==========
+
+A single-page, client-side web application that enables text-to-speech reading
+of PDF documents with advanced controls and bookmarking capabilities.
+
+Features
+--------
+- PDF Upload & Display: Drag-and-drop or click-to-upload PDF files, rendered
+  on canvas with responsive scaling.
+- Text-to-Speech Reading: Sentence-by-sentence audio narration using the Web
+  Speech API with voice selection and adjustable playback speed.
+- Sentence-Level Navigation: Navigate through sentences independently of pages
+  with Previous/Next Sentence controls.
+- Bookmarking System: Save and resume reading from bookmarked positions with
+  automatic progress tracking.
+- Focus Mode: Minimize UI to reduce distractions during reading sessions.
+- Interactive Text Selection: Tap/click to highlight and select individual
+  sentences on the PDF.
+- Auto-Resume: Automatically detect and offer to resume from the last reading
+  position.
+
+Tech Stack
+----------
+- Frontend: Vanilla HTML5/CSS3/JavaScript (no frameworks)
+- PDF Rendering: PDF.js (v3.11.174) via CDN
+- Speech Synthesis: Web Speech API (native browser API)
+- Storage: Browser localStorage for bookmarks and reading progress
+- Design: Dark theme with responsive UI
+
+Architecture
+------------
+The entire application is contained in a single index.html file. It uses canvas
+elements for PDF rendering and highlighting, with localStorage for persistence.
+The interface includes a top control bar (collapsible in Focus mode), a main
+content area with the PDF canvas, a sentence ticker for audio feedback, and a
+bottom control panel with playback and navigation buttons.
