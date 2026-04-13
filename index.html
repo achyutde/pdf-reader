@@ -273,6 +273,27 @@
     }
     body.reading #fab { display: flex; }
 
+    /* ═══ PLAY/PAUSE FAB (focus mode) ═══ */
+    #fab-play {
+      display: none;
+      position: fixed;
+      bottom: 14px; right: 14px;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: rgba(233, 69, 96, 0.88);
+      border: 1px solid #e94560;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 14px rgba(0,0,0,0.5);
+      transition: background 0.15s;
+    }
+    body.reading #fab-play { display: flex; }
+
     /* ═══ BOOKMARKS SHEET ═══ */
     #bm-bg {
       display: none;
@@ -300,7 +321,19 @@
       flex-shrink: 0;
     }
     #bm-head h2 { font-size: 16px; font-weight: 600; flex: 1; }
-    #bm-x { background: none; border: none; color: #666; font-size: 22px; cursor: pointer; }
+    .bm-io-btn {
+      background: #0f3460;
+      color: #aaa;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 7px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-left: 6px;
+    }
+    .bm-io-btn:active { opacity: 0.7; }
+    #bm-x { background: none; border: none; color: #666; font-size: 22px; cursor: pointer; margin-left: 6px; }
     #bm-items { overflow-y: auto; flex: 1; }
     .bm-row {
       display: flex;
@@ -345,6 +378,7 @@
   <h1>📖 PDF Reader</h1>
   <button class="top-btn" onclick="document.getElementById('file-input').click()">Open PDF</button>
   <button class="top-btn sec" id="bm-btn"   onclick="openBM()"      disabled>🔖 Bookmarks</button>
+  <button class="top-btn sec" id="saveb"    onclick="addBM()"       disabled>🔖 Save</button>
   <button class="top-btn sec" id="focus-btn" onclick="enterReading()" disabled>⛶ Focus</button>
   <input type="file" id="file-input" accept="application/pdf" />
   <div id="page-jump">
@@ -365,6 +399,9 @@
 
 <!-- Reading-mode exit FAB -->
 <button id="fab" onclick="exitReading()" title="Exit focus mode">⊟</button>
+
+<!-- Reading-mode play/pause FAB -->
+<button id="fab-play" onclick="togglePlay()" title="Play / Pause">▶</button>
 
 <!-- Scrollable content -->
 <div id="content">
@@ -396,7 +433,6 @@
     <button class="cb" id="playb"     onclick="togglePlay()"    disabled>▶ Read</button>
     <button class="cb" id="next-sent" onclick="moveSent(1)"     disabled>Sent ⏭</button>
     <button class="cb" id="next-pg"   onclick="changePage(1)"   disabled>Page ▶</button>
-    <button class="cb green" id="saveb" onclick="addBM()"       disabled>🔖 Save</button>
   </div>
   <div class="ctrl-row">
     <span id="speed-lbl">Speed: <strong id="speed-val">1.0×</strong></span>
@@ -413,6 +449,9 @@
   <div id="bm-sheet">
     <div id="bm-head">
       <h2>🔖 Bookmarks</h2>
+      <button class="bm-io-btn" onclick="document.getElementById('bm-import-input').click()" title="Import bookmarks">⬆ Import</button>
+      <button class="bm-io-btn" onclick="exportBMs()" title="Export bookmarks">⬇ Export</button>
+      <input type="file" id="bm-import-input" accept="application/json" style="display:none" onchange="importBMs(this)" />
       <button id="bm-x" onclick="closeBM()">✕</button>
     </div>
     <div id="bm-items"></div>
@@ -765,15 +804,22 @@ function hardStop() {
 }
 
 function updateBtn() {
+  const fabPlay = document.getElementById('fab-play');
   if (mode === 'speaking') {
     playb.textContent = '⏸ Pause';
     playb.className   = 'cb playing';
+    fabPlay.textContent = '⏸';
+    fabPlay.style.background = 'rgba(192,57,43,0.88)';
   } else if (mode === 'paused') {
     playb.textContent = '▶ Resume';
     playb.className   = 'cb paused';
+    fabPlay.textContent = '▶';
+    fabPlay.style.background = 'rgba(83,52,131,0.88)';
   } else {
     playb.textContent = '▶ Read';
     playb.className   = 'cb';
+    fabPlay.textContent = '▶';
+    fabPlay.style.background = 'rgba(233,69,96,0.88)';
   }
   playb.disabled = false;
 }
@@ -981,9 +1027,59 @@ document.addEventListener('keydown', e => {
 // ─────────────────────────────────────────────────────
 // BOOKMARKS  (localStorage, per filename)
 // ─────────────────────────────────────────────────────
-const bmKey  = () => 'bm:' + fileName;
-const getBMs = () => { try { return JSON.parse(localStorage.getItem(bmKey()) || '[]'); } catch { return []; } };
+const bmKey      = () => 'bm:' + fileName;
+const getBMs     = () => { try { return JSON.parse(localStorage.getItem(bmKey()) || '[]'); } catch { return []; } };
+const getBMsByKey = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
 const putBMs = b  => localStorage.setItem(bmKey(), JSON.stringify(b));
+
+function exportBMs() {
+  const all = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('bm:')) {
+      try { all[k] = JSON.parse(localStorage.getItem(k)); } catch {}
+    }
+  }
+  if (!Object.keys(all).length) { toast('No bookmarks to export'); return; }
+  const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'pdf-reader-bookmarks.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Bookmarks exported ✓');
+}
+
+function importBMs(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      let count = 0;
+      Object.entries(data).forEach(([k, v]) => {
+        if (!k.startsWith('bm:') || !Array.isArray(v)) return;
+        const existing = getBMsByKey(k);
+        const merged   = [...existing];
+        v.forEach(bm => {
+          if (!merged.find(e => e.page === bm.page && e.si === bm.si)) {
+            merged.push(bm);
+            count++;
+          }
+        });
+        localStorage.setItem(k, JSON.stringify(merged));
+      });
+      toast(`Imported ${count} new bookmark(s) ✓`);
+      openBM();
+    } catch {
+      toast('Invalid bookmark file');
+    }
+  };
+  r.readAsText(f);
+  input.value = '';
+}
 
 function addBM() {
   if (!pdf) return;
