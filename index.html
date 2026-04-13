@@ -136,6 +136,8 @@
       max-width: 800px;
     }
     #canvas-wrap.on { display: block; }
+    body.fit-width #canvas-wrap { max-width: none; }
+    body.fit-width #content { padding-left: 0; padding-right: 0; }
 
     #canvas-container {
       position: relative;
@@ -379,6 +381,7 @@
   <button class="top-btn" onclick="document.getElementById('file-input').click()">Open PDF</button>
   <button class="top-btn sec" id="bm-btn"   onclick="openBM()"      disabled>🔖 Bookmarks</button>
   <button class="top-btn sec" id="saveb"    onclick="addBM()"       disabled>🔖 Save</button>
+  <button class="top-btn sec" id="view-btn"  onclick="toggleView()"   disabled>↔ Fit Width</button>
   <button class="top-btn sec" id="focus-btn" onclick="enterReading()" disabled>⛶ Focus</button>
   <input type="file" id="file-input" accept="application/pdf" />
   <div id="page-jump">
@@ -928,8 +931,29 @@ function setSpeed(v) {
 // CONTROLS
 // ─────────────────────────────────────────────────────
 function enableControls() {
-  ['playb','prev-pg','next-pg','prev-sent','next-sent','saveb']
+  ['playb','prev-pg','next-pg','prev-sent','next-sent','saveb','view-btn']
     .forEach(id => document.getElementById(id).disabled = false);
+}
+
+// ─────────────────────────────────────────────────────
+// VIEW MODE  (fit-page ↔ fit-width)
+// ─────────────────────────────────────────────────────
+let fitWidth = false;
+
+function toggleView() {
+  fitWidth = !fitWidth;
+  const btn = document.getElementById('view-btn');
+  if (fitWidth) {
+    document.body.classList.add('fit-width');
+    btn.textContent = '⛶ Fit Page';
+  } else {
+    document.body.classList.remove('fit-width');
+    btn.textContent = '↔ Fit Width';
+  }
+  // Re-scroll to the current highlight after layout reflows
+  if (curSent >= 0 && sentRects[curSent]) {
+    requestAnimationFrame(() => drawHL(curSent));
+  }
 }
 
 // ─────────────────────────────────────────────────────
