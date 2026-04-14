@@ -997,10 +997,9 @@ function checkSavedPosition() {
 
 async function doResume() {
   if (!pendingResume) return;
-  dismissResume();
-
   const { page, sent } = pendingResume;
   pendingResume = null;
+  dismissResume();
 
   await renderPage(page);
   curSent   = sent;
@@ -1056,7 +1055,7 @@ const getBMs     = () => { try { return JSON.parse(localStorage.getItem(bmKey())
 const getBMsByKey = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
 const putBMs = b  => localStorage.setItem(bmKey(), JSON.stringify(b));
 
-function exportBMs() {
+async function exportBMs() {
   const all = {};
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
@@ -1065,7 +1064,28 @@ function exportBMs() {
     }
   }
   if (!Object.keys(all).length) { toast('No bookmarks to export'); return; }
-  const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+  const json = JSON.stringify(all, null, 2);
+
+  // Use Save As dialog if the browser supports it (Chrome/Edge)
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'pdf-reader-bookmarks.json',
+        types: [{ description: 'JSON File', accept: { 'application/json': ['.json'] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      toast('Bookmarks exported ✓');
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled the dialog
+      // fall through to legacy download on any other error
+    }
+  }
+
+  // Fallback for Firefox/Safari: straight download to Downloads folder
+  const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
