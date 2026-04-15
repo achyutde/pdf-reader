@@ -95,7 +95,16 @@ export function speakAt(si) {
       return;
     }
 
-    // If the next TTS page is what the user is already viewing, re-sync.
+    // Normal case: TTS and display are in sync — render next page to canvas.
+    if (!state.ttsPage) {
+      renderPage(nextPage).then(() => {
+        if (state.mode === 'speaking') speakAt(0);
+      });
+      return;
+    }
+
+    // User has navigated away — advance TTS silently without canvas render.
+    // If next TTS page happens to be what the user is already viewing, re-sync.
     if (nextPage === state.curPage) {
       state.ttsPage      = null;
       state.ttsSentences = [];
