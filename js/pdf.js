@@ -25,7 +25,9 @@ export async function renderPage(n) {
   await page.render({ canvasContext: pdfCtx, viewport: state.viewport }).promise;
 
   const tc = await page.getTextContent();
-  buildSentences(tc.items);
+  const { sentences, sentRects } = parseSentences(tc.items, state.viewport);
+  state.sentences = sentences;
+  state.sentRects = sentRects;
 
   state.curPage = n;
   document.getElementById('pg-input').value      = n;
@@ -39,7 +41,9 @@ export async function renderPage(n) {
 }
 
 // ─── Sentence parsing ─────────────────────────────────
-function buildSentences(items) {
+// Returns { sentences, sentRects } without touching state — used by both
+// renderPage (display) and getPageSentences (background TTS fetch).
+function parseSentences(items, vp) {
   let txt = '', map = [];
   items.forEach((item, i) => {
     if (!item.str?.trim()) return;
@@ -48,10 +52,10 @@ function buildSentences(items) {
     map.push({ s, e: txt.length, i });
   });
 
-  const rx     = /[^.!?…\n]+(?:[.!?…]+["']?(?=\s|$)|\n)|[^.!?…\n]+$/g;
-  const chunks = txt.match(rx) || [txt];
-  state.sentences = [];
-  state.sentRects = [];
+  const rx       = /[^.!?…\n]+(?:[.!?…]+["']?(?=\s|$)|\n)|[^.!?…\n]+$/g;
+  const chunks   = txt.match(rx) || [txt];
+  const sentences = [];
+  const sentRects = [];
   let cur = 0;
 
   chunks.forEach(raw => {
@@ -59,32 +63,43 @@ function buildSentences(items) {
     if (!text) { cur += raw.length; return; }
     const a    = cur, b = cur + raw.length;
     const hits = map.filter(m => m.e > a && m.s < b);
-    state.sentences.push({ text });
+    sentences.push({ text });
 
     if (hits.length) {
-      const rs = hits.map(m => itemRect(items[m.i]));
-      state.sentRects.push({
+      const rs = hits.map(m => itemRect(items[m.i], vp));
+      sentRects.push({
         x: Math.min(...rs.map(r => r.x)),
         y: Math.min(...rs.map(r => r.y)),
         w: Math.max(...rs.map(r => r.x + r.w)) - Math.min(...rs.map(r => r.x)),
         h: Math.max(...rs.map(r => r.y + r.h)) - Math.min(...rs.map(r => r.y)),
       });
     } else {
-      state.sentRects.push(null);
+      sentRects.push(null);
     }
     cur = b;
   });
+  return { sentences, sentRects };
 }
 
-function itemRect(item) {
+function itemRect(item, vp) {
   const [,,,sy,tx,ty] = item.transform;
   const h = Math.abs(sy);
   return {
-    x: tx * state.viewport.scale,
-    y: (state.viewport.height / state.viewport.scale - ty) * state.viewport.scale - h * state.viewport.scale,
-    w: (item.width || 40) * state.viewport.scale,
-    h: h * state.viewport.scale + 4,
+    x: tx * vp.scale,
+    y: (vp.height / vp.scale - ty) * vp.scale - h * vp.scale,
+    w: (item.width || 40) * vp.scale,
+    h: h * vp.scale + 4,
   };
+}
+
+// Fetch sentences for page n without rendering to canvas.
+// Used by speakAt() to advance TTS in the background.
+export async function getPageSentences(n) {
+  const page = await state.pdf.getPage(n);
+  const vp   = page.getViewport({ scale: PAGE_SCALE });
+  const tc   = await page.getTextContent();
+  const { sentences } = parseSentences(tc.items, vp);
+  return sentences;
 }
 
 // ─── Highlight ────────────────────────────────────────
@@ -94,6 +109,8 @@ export function clearHL() {
 
 export function drawHL(si) {
   clearHL();
+  // Don't draw highlights when the display page differs from the TTS page
+  if (state.ttsPage && state.ttsPage !== state.curPage) return;
   const r = state.sentRects[si];
   if (!r) return;
   const pad = 5;
@@ -132,7 +149,7 @@ export function savePosition() {
   if (!state.pdf) return;
   try {
     localStorage.setItem(posKey(), JSON.stringify({
-      page: state.curPage,
+      page: state.ttsPage ?? state.curPage,
       sent: Math.max(0, state.curSent),
       ts:   Date.now(),
     }));

@@ -21,4 +21,6 @@ export const state = {
   voice:         null,
   pendingResume: null,
   fitWidth:      false,
+  ttsPage:       null, // null = in sync with curPage; otherwise = page TTS is reading
+  ttsSentences:  [],   // sentence texts for the TTS page when pages differ
 };

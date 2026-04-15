@@ -8,31 +8,34 @@ import { renderPage, enableControls, savePosition,
          showTicker }                                     from './pdf.js';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom }                                      from './speech.js';
+         startFrom, speakAt }                             from './speech.js';
 import { moveSent, changePage, jumpTo }                   from './navigation.js';
-import { addBM, openBM, closeBM, gotoBM,
+import { addBM, openBM, closeBM,
          exportBMs, importBMs }                           from './bookmarks.js';
 import { enterReading, exitReading, toggleView, toast,
-         doResume, dismissResume, setupSwipe }            from './ui.js';
+         doResume, dismissResume, setupSwipe,
+         updateReturnBtn }                                from './ui.js';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// Inject toast + savePosition into speech.js (avoids circular import)
-injectDeps(toast, savePosition);
+// Inject toast, savePosition, updateReturnBtn into speech.js (avoids circular import)
+injectDeps(toast, savePosition, updateReturnBtn);
 
 // ─── App init ─────────────────────────────────────────
 async function initPDF(data) {
   hardStop();
   dismissResume();
 
-  state.pdf      = await pdfjsLib.getDocument({ data }).promise;
-  state.numPages = state.pdf.numPages;
-  state.curPage  = 1;
-  state.curSent  = 0;
-  state.pausePage = 1;
-  state.pauseSent = 0;
+  state.pdf          = await pdfjsLib.getDocument({ data }).promise;
+  state.numPages     = state.pdf.numPages;
+  state.curPage      = 1;
+  state.curSent      = 0;
+  state.pausePage    = 1;
+  state.pauseSent    = 0;
+  state.ttsPage      = null;
+  state.ttsSentences = [];
 
   document.getElementById('drop-zone').style.display  = 'none';
   document.getElementById('canvas-wrap').classList.add('on');
@@ -46,7 +49,10 @@ async function initPDF(data) {
   checkSavedPosition();
 }
 
-// ─── Tap to position ──────────────────────────────────
+// ─── Tap-to-position popup ────────────────────────────
+let _tapSnap         = null;  // pre-tap snapshot for dismiss restoration
+let _tapDismissTimer = null;
+
 function onTap(e) {
   if (!state.sentences.length) return;
   const hlCanvas = document.getElementById('hl-canvas');
@@ -63,21 +69,131 @@ function onTap(e) {
     if (cx >= rc.x - 8 && cx <= rc.x + rc.w + 8 &&
         cy >= rc.y - 8 && cy <= rc.y + rc.h + 8) { found = i; break; }
   }
-  if (found < 0) return;
 
-  const wasPlaying = state.mode === 'speaking';
-  cancelTTS();
+  // Tap outside a sentence — just dismiss any open popup
+  if (found < 0) { dismissTapMenu(); return; }
 
-  state.curSent   = found;
-  state.pausePage = state.curPage;
-  state.pauseSent = found;
-  state.mode      = 'paused';
+  // Dismiss any existing popup silently before showing a new one
+  dismissTapMenuDOM();
+  if (_tapSnap) { _tapSnap = null; clearTimeout(_tapDismissTimer); }
 
-  clearHL(); drawHL(found); showTicker(state.sentences[found].text);
-  updateBtn(); savePosition();
+  // Snapshot state so we can restore on cancel
+  _tapSnap = {
+    curSent:      state.curSent,
+    mode:         state.mode,
+    pausePage:    state.pausePage,
+    pauseSent:    state.pauseSent,
+    ttsPage:      state.ttsPage,
+    ttsSentences: state.ttsSentences,
+    wasPlaying:   state.mode === 'speaking',
+  };
 
-  if (wasPlaying) startFrom(state.curPage, found);
-  else toast('Tap ▶ Resume to read from here');
+  // Temporarily pause TTS (keep position, don't destroy state)
+  if (_tapSnap.wasPlaying) cancelTTS();
+
+  // Preview: highlight tapped sentence
+  clearHL(); drawHL(found);
+  showTicker(state.sentences[found].text);
+
+  // Populate and position popup
+  document.getElementById('tap-preview').textContent =
+    state.sentences[found].text.slice(0, 120);
+  showTapMenu(found, e.clientX, e.clientY);
+
+  // Wire confirm button (re-wire each tap to capture current `found`)
+  document.getElementById('tap-read').onclick = () => {
+    clearTimeout(_tapDismissTimer);
+    _tapSnap = null;
+    dismissTapMenuDOM();
+
+    state.curSent   = found;
+    state.pausePage = state.curPage;
+    state.pauseSent = found;
+    state.mode      = 'paused';
+    clearHL(); drawHL(found); showTicker(state.sentences[found].text);
+    updateBtn(); savePosition();
+    // Always start reading from tapped sentence
+    startFrom(state.curPage, found);
+  };
+
+  // Auto-dismiss after 4 s
+  _tapDismissTimer = setTimeout(() => dismissTapMenu(), 4000);
+}
+
+function showTapMenu(si, clientX, clientY) {
+  const menu    = document.getElementById('tap-menu');
+  const POPUP_W = 280;
+  const POPUP_H = 96;
+  const MARGIN  = 10;
+  const ARROW_H = 6;
+
+  let top  = clientY - POPUP_H - ARROW_H - MARGIN;
+  let left = clientX - 20;
+
+  // Clamp horizontally
+  left = Math.max(MARGIN, Math.min(left, window.innerWidth - POPUP_W - MARGIN));
+
+  // Flip below tap if too close to top
+  const flipBelow = top < MARGIN;
+  if (flipBelow) {
+    top = clientY + ARROW_H + MARGIN;
+    menu.classList.add('arrow-below');
+  } else {
+    menu.classList.remove('arrow-below');
+  }
+
+  top = Math.min(top, window.innerHeight - POPUP_H - MARGIN);
+
+  // Move CSS arrow to point at tap x
+  const arrowLeft = Math.max(10, Math.min(clientX - left - 5, POPUP_W - 20));
+  menu.style.setProperty('--arrow-left', arrowLeft + 'px');
+  menu.style.top  = top  + 'px';
+  menu.style.left = left + 'px';
+  menu.classList.add('on');
+}
+
+function dismissTapMenuDOM() {
+  document.getElementById('tap-menu').classList.remove('on');
+}
+
+function dismissTapMenu() {
+  clearTimeout(_tapDismissTimer);
+  dismissTapMenuDOM();
+  if (!_tapSnap) return;
+
+  const snap = _tapSnap;
+  _tapSnap = null;
+
+  // Restore visual state
+  if (snap.curSent >= 0 && state.sentRects[snap.curSent]) {
+    clearHL(); drawHL(snap.curSent);
+    showTicker(state.sentences[snap.curSent]?.text || '');
+  } else {
+    clearHL();
+  }
+
+  // Restore TTS if it was playing before the tap
+  if (snap.wasPlaying) {
+    state.mode         = 'speaking';
+    state.ttsPage      = snap.ttsPage;
+    state.ttsSentences = snap.ttsSentences;
+    state.curSent      = snap.curSent;
+    state.pausePage    = snap.pausePage;
+    state.pauseSent    = snap.pauseSent;
+    const resumeSent   = snap.curSent >= 0 ? snap.curSent : snap.pauseSent;
+    if (snap.ttsPage && snap.ttsPage !== state.curPage) {
+      startFrom(snap.ttsPage, resumeSent);
+    } else {
+      speakAt(resumeSent);
+    }
+    updateBtn();
+  } else {
+    state.curSent   = snap.curSent;
+    state.pausePage = snap.pausePage;
+    state.pauseSent = snap.pauseSent;
+    state.mode      = snap.mode;
+    updateBtn();
+  }
 }
 
 // ─── Event wiring ─────────────────────────────────────
@@ -116,6 +232,19 @@ document.getElementById('rb-no').addEventListener('click', dismissResume);
 document.getElementById('fab').addEventListener('click', exitReading);
 document.getElementById('fab-play').addEventListener('click', togglePlay);
 
+// Return-to-reading button
+document.getElementById('return-btn').addEventListener('click', async () => {
+  if (!state.ttsPage) return;
+  const ttsPage = state.ttsPage;
+  await renderPage(ttsPage);
+  state.ttsPage      = null;
+  state.ttsSentences = [];
+  if (state.mode !== 'stopped' && state.curSent >= 0) {
+    clearHL(); drawHL(state.curSent);
+  }
+  updateReturnBtn();
+});
+
 // Edge page nav
 document.getElementById('edge-prev').addEventListener('click', () => changePage(-1));
 document.getElementById('edge-next').addEventListener('click', () => changePage(1));
@@ -141,6 +270,19 @@ document.querySelector('.bm-io-btn[title="Import bookmarks"]').addEventListener(
   () => document.getElementById('bm-import-input').click());
 document.querySelector('.bm-io-btn[title="Export bookmarks"]').addEventListener('click',
   exportBMs);
+
+// Tap popup buttons
+document.getElementById('tap-cancel').addEventListener('click', dismissTapMenu);
+
+// Dismiss tap popup on outside click
+document.addEventListener('click', e => {
+  const menu = document.getElementById('tap-menu');
+  if (menu.classList.contains('on') &&
+      !menu.contains(e.target) &&
+      e.target.id !== 'hl-canvas') {
+    dismissTapMenu();
+  }
+}, { capture: true });
 
 // Canvas tap
 const hlCanvas = document.getElementById('hl-canvas');

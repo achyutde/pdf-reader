@@ -49,12 +49,29 @@ export function toggleView() {
   }
 }
 
+// ─── Return-to-reading button ─────────────────────────
+export function updateReturnBtn() {
+  const btn = document.getElementById('return-btn');
+  if (!btn) return;
+  const ttsPage = state.ttsPage;
+  if (ttsPage && ttsPage !== state.curPage && state.mode !== 'stopped') {
+    btn.textContent = `↩ p.${ttsPage}`;
+    btn.classList.add('on');
+  } else {
+    btn.classList.remove('on');
+  }
+}
+
 // ─── Resume banner ────────────────────────────────────
 export async function doResume() {
   if (!state.pendingResume) return;
   const { page, sent } = state.pendingResume;
   state.pendingResume = null;
   dismissResume();
+
+  // Reset TTS sync state before rendering
+  state.ttsPage      = null;
+  state.ttsSentences = [];
 
   await renderPage(page);
   state.curSent   = sent;
@@ -66,6 +83,7 @@ export async function doResume() {
     clearHL(); drawHL(sent); showTicker(state.sentences[sent].text);
   }
   updateBtn();
+  updateReturnBtn();
   savePosition();
   toast(`Resumed at page ${page} ✓`);
 }
