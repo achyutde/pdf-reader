@@ -9,11 +9,11 @@ import { renderPage, enableControls, savePosition,
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
          startFrom, speakAt }                             from './speech.js';
-import { moveSent, changePage, jumpTo }                   from './navigation.js';
+import { moveSent, changePage }                           from './navigation.js';
 import { addBM, openBM, closeBM,
          exportBMs, importBMs }                           from './bookmarks.js';
 import { enterReading, exitReading, toggleView, toast,
-         doResume, dismissResume, setupSwipe,
+         doResume, dismissResume,
          updateReturnBtn }                                from './ui.js';
 
 // ─── PDF.js worker ────────────────────────────────────
@@ -42,7 +42,7 @@ async function initPDF(data) {
   document.getElementById('drop-zone').style.display  = 'none';
   document.getElementById('canvas-wrap').classList.add('on');
   document.getElementById('page-jump').classList.add('on');
-  document.getElementById('page-total').textContent   = `/ ${state.numPages}`;
+  document.getElementById('page-total').textContent   = ` of ${state.numPages}`;
   document.getElementById('bm-btn').disabled           = false;
   document.getElementById('focus-btn').disabled        = false;
   enableControls();
@@ -224,13 +224,6 @@ document.getElementById('saveb').addEventListener('click', addBM);
 document.getElementById('view-btn').addEventListener('click', toggleView);
 document.getElementById('focus-btn').addEventListener('click', enterReading);
 
-// Page jump
-document.getElementById('pg-input').addEventListener('keydown',
-  e => { if (e.key === 'Enter') jumpTo(); });
-document.getElementById('pg-input').addEventListener('input',
-  function() { this.value = this.value.replace(/[^0-9]/g, ''); });
-document.querySelector('#page-jump .top-btn').addEventListener('click', jumpTo);
-
 // Resume banner
 document.getElementById('rb-yes').addEventListener('click', doResume);
 document.getElementById('rb-no').addEventListener('click', dismissResume);
@@ -291,14 +284,32 @@ document.addEventListener('click', e => {
   }
 }, { capture: true });
 
-// Canvas tap
+// Canvas tap/swipe. One pointer gesture can select a word or change a page,
+// never both. Vertical movement remains available for normal browser gestures.
 const hlCanvas = document.getElementById('hl-canvas');
-hlCanvas.addEventListener('click', onTap);
-hlCanvas.addEventListener('touchend', e => {
-  e.preventDefault();
-  const t = e.changedTouches[0];
-  onTap({ clientX: t.clientX, clientY: t.clientY });
-}, { passive: false });
+let pointerStart = null;
+
+hlCanvas.addEventListener('pointerdown', e => {
+  if (!e.isPrimary) return;
+  pointerStart = { id: e.pointerId, x: e.clientX, y: e.clientY };
+});
+
+hlCanvas.addEventListener('pointerup', e => {
+  if (!pointerStart || pointerStart.id !== e.pointerId) return;
+  const dx = e.clientX - pointerStart.x;
+  const dy = e.clientY - pointerStart.y;
+  pointerStart = null;
+
+  if (Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    changePage(dx < 0 ? 1 : -1);
+    return;
+  }
+  if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) {
+    onTap({ clientX: e.clientX, clientY: e.clientY });
+  }
+});
+
+hlCanvas.addEventListener('pointercancel', () => { pointerStart = null; });
 
 // Voices
 speechSynthesis.onvoiceschanged = refreshVoices;
@@ -318,5 +329,3 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('beforeunload', savePosition);
 
-// Swipe for focus-mode page navigation
-setupSwipe(() => changePage(-1), () => changePage(1));
