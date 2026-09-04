@@ -30,4 +30,5 @@ export const state = {
   totalWords:     0,
   scannedPages:   0,
   progressScanId: 0,
+  readingFinished: false,
 };
