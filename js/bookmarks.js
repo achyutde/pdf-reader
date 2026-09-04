@@ -3,10 +3,10 @@
 // export to JSON file, import from JSON file
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.2.0';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.2.0';
-import { hardStop, startFrom, updateBtn } from './speech.js?v=2.2.0';
-import { toast } from './ui.js?v=2.2.0';
+import { state } from './state.js?v=2.2.1';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.2.1';
+import { hardStop, startFrom, updateBtn } from './speech.js?v=2.2.1';
+import { toast } from './ui.js?v=2.2.1';
 
 // ─── Storage helpers ──────────────────────────────────
 const bmKey       = ()  => 'bm:' + state.fileName;
