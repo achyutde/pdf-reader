@@ -2,19 +2,20 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js';
+import { state }                                          from './state.js?v=2.1.0';
+import { startProgressScan }                              from './progress.js?v=2.1.0';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.1.0';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js';
-import { moveSent, changePage }                           from './navigation.js';
+         startFrom, speakAt }                             from './speech.js?v=2.1.0';
+import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.1.0';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.1.0';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js';
+         updateReturnBtn }                                from './ui.js?v=2.1.0';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -38,17 +39,34 @@ async function initPDF(data) {
   state.pauseWord    = 0;
   state.ttsPage      = null;
   state.ttsSentences = [];
+  state.readingFinished = false;
+  state.progressScanId += 1;
+  state.pageWordCounts = [];
+  state.totalWords = 0;
+  state.scannedPages = 0;
 
   document.getElementById('drop-zone').style.display  = 'none';
   document.getElementById('canvas-wrap').classList.add('on');
   document.getElementById('page-jump').classList.add('on');
-  document.getElementById('page-total').textContent   = ` of ${state.numPages}`;
+  document.getElementById('page-total').textContent   = `of ${state.numPages}`;
+  const pageSelect = document.getElementById('pg-select');
+  pageSelect.innerHTML = '';
+  const pageOptions = document.createDocumentFragment();
+  for (let page = 1; page <= state.numPages; page++) {
+    const option = document.createElement('option');
+    option.value = page;
+    option.textContent = page;
+    pageOptions.appendChild(option);
+  }
+  pageSelect.appendChild(pageOptions);
+  pageSelect.disabled = false;
   document.getElementById('bm-btn').disabled           = false;
   document.getElementById('focus-btn').disabled        = false;
   enableControls();
 
   await renderPage(1);
   checkSavedPosition();
+  startProgressScan();
 }
 
 // ─── Tap-to-position popup ────────────────────────────
@@ -224,6 +242,11 @@ document.getElementById('saveb').addEventListener('click', addBM);
 document.getElementById('view-btn').addEventListener('click', toggleView);
 document.getElementById('focus-btn').addEventListener('click', enterReading);
 
+// Page dropdown remains available alongside swipe navigation.
+document.getElementById('pg-select').addEventListener('change', function() {
+  jumpTo(parseInt(this.value, 10));
+});
+
 // Resume banner
 document.getElementById('rb-yes').addEventListener('click', doResume);
 document.getElementById('rb-no').addEventListener('click', dismissResume);
@@ -284,8 +307,8 @@ document.addEventListener('click', e => {
   }
 }, { capture: true });
 
-// Canvas tap/swipe. One pointer gesture can select a word or change a page,
-// never both. Vertical movement remains available for normal browser gestures.
+// Canvas tap/swipe. Pointer Events handle mouse, pen, and touch with one
+// gesture path; a gesture can select a word or change a page, never both.
 const hlCanvas = document.getElementById('hl-canvas');
 let pointerStart = null;
 

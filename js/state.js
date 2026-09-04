@@ -26,4 +26,9 @@ export const state = {
   fitWidth:      false,
   ttsPage:       null, // null = in sync with curPage; otherwise = page TTS is reading
   ttsSentences:  [],   // sentence data for the TTS page when pages differ
+  pageWordCounts: [],
+  totalWords:     0,
+  scannedPages:   0,
+  progressScanId: 0,
+  readingFinished: false,
 };

@@ -2,7 +2,8 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.1.0';
+import { updateProgress } from './progress.js?v=2.1.0';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -28,7 +29,8 @@ export async function renderPage(n) {
   state.sentRects = sentRects;
 
   state.curPage = n;
-  document.getElementById('page-current').textContent = n;
+  const pageSelect = document.getElementById('pg-select');
+  if (pageSelect) pageSelect.value = n;
   document.getElementById('prev-pg').disabled    = n <= 1;
   document.getElementById('next-pg').disabled    = n >= state.numPages;
   document.getElementById('edge-prev').disabled  = n <= 1;
@@ -36,6 +38,7 @@ export async function renderPage(n) {
 
   clearHL();
   content.scrollTo({ top: 0, behavior: 'smooth' });
+  updateProgress();
 }
 
 // Keep sentence-level speech, but retain a character range and rectangle for
@@ -187,6 +190,7 @@ const posKey = () => 'pos:' + state.fileName;
 
 export function savePosition() {
   if (!state.pdf) return;
+  updateProgress();
   try {
     localStorage.setItem(posKey(), JSON.stringify({
       page: state.ttsPage ?? state.curPage,

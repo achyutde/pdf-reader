@@ -2,12 +2,12 @@
 // Page and sentence navigation
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js';
+import { state } from './state.js?v=2.1.0';
 import { renderPage, clearHL, drawHL, showTicker,
-         savePosition, getPageSentences }           from './pdf.js';
+         savePosition, getPageSentences }           from './pdf.js?v=2.1.0';
 import { cancelTTS, speakAt, hardStop,
-         updateBtn, startFrom }                     from './speech.js';
-import { updateReturnBtn }                           from './ui.js';
+         updateBtn, startFrom }                     from './speech.js?v=2.1.0';
+import { updateReturnBtn }                           from './ui.js?v=2.1.0';
 
 // ─── Sentence navigation ──────────────────────────────
 // moveSent always navigates the TTS position (not the display page).
@@ -142,4 +142,16 @@ export async function changePage(delta) {
     clearHL(); drawHL(0); showTicker(state.sentences[0]?.text || '');
     savePosition(); updateBtn(); updateReturnBtn();
   }
+}
+
+export function jumpTo(pageNumber) {
+  let n = Number.isFinite(pageNumber)
+    ? pageNumber
+    : parseInt(document.getElementById('pg-select')?.value, 10);
+  if (isNaN(n)) return;
+  n = Math.max(1, Math.min(n, state.numPages));
+  const select = document.getElementById('pg-select');
+  if (select) select.value = n;
+  if (n === state.curPage) return;
+  changePage(n - state.curPage);
 }

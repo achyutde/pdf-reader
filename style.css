@@ -60,7 +60,19 @@ body.reading #topbar { transform: translateY(-110%); }
 }
 #page-jump.on { display: flex; }
 #page-jump { font-size: 13px; color: #777; }
-#page-current { color: #aac4e0; font-weight: 600; }
+#page-jump label { white-space: nowrap; }
+#pg-select {
+  min-width: 72px;
+  background: #0f3460;
+  color: white;
+  border: 1px solid #1a4a8a;
+  border-radius: 7px;
+  padding: 6px 24px 6px 8px;
+  font-size: 14px;
+  outline: none;
+}
+#pg-select:focus { border-color: #e94560; }
+#pg-select:disabled { opacity: 0.4; }
 #page-total { white-space: nowrap; }
 
 /* ═══ RESUME BANNER ═══ */
@@ -162,7 +174,7 @@ body.fit-width #content { padding-left: 0; padding-right: 0; }
 #ticker {
   position: fixed;
   left: 0; right: 0;
-  bottom: 138px;
+  bottom: 164px;
   background: rgba(10, 38, 75, 0.97);
   border-top: 1px solid #0f3460;
   padding: 8px 20px;
@@ -175,7 +187,43 @@ body.fit-width #content { padding-left: 0; padding-right: 0; }
   z-index: 150;
   transition: bottom 0.28s;
 }
-body.reading #ticker { bottom: 0; }
+body.reading #ticker { bottom: 26px; }
+
+/* ═══ READING PROGRESS ═══ */
+#reading-progress {
+  display: none;
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 138px;
+  height: 26px;
+  background: rgba(22, 33, 62, 0.98);
+  z-index: 205;
+  pointer-events: none;
+}
+#reading-progress.on { display: block; }
+#progress-meta {
+  height: 22px;
+  padding: 3px 12px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8fa6c4;
+  font-size: 11px;
+}
+#progress-percent { color: #d6e1ef; font-weight: 600; }
+#progress-track {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 4px;
+  background: rgba(15, 52, 96, 0.9);
+}
+#progress-fill {
+  width: 0;
+  height: 100%;
+  background: #e94560;
+  transition: width 0.25s ease;
+}
+body.reading #reading-progress { bottom: 0; }
 
 /* ═══ CONTROLS ═══ */
 #controls {
@@ -267,7 +315,7 @@ body.reading #fab { display: flex; }
 #fab-play {
   display: none;
   position: fixed;
-  bottom: 14px; right: 14px;
+  bottom: 40px; right: 14px;
   width: 52px; height: 52px;
   border-radius: 50%;
   background: rgba(233, 69, 96, 0.88);
@@ -312,7 +360,7 @@ body.reading .edge-btn { display: flex; }
 #return-btn {
   display: none;
   position: fixed;
-  bottom: 158px;     /* above controls (138px) + ticker gap */
+  bottom: 184px;     /* above controls, progress, and ticker */
   left: 14px;
   height: 38px;
   padding: 0 14px;
@@ -334,7 +382,7 @@ body.reading .edge-btn { display: flex; }
 #return-btn.on { display: flex; }
 #return-btn:active { opacity: 0.8; }
 /* In focus mode controls are hidden so we can sit at the bottom */
-body.reading #return-btn { bottom: 80px; }
+body.reading #return-btn { bottom: 106px; }
 
 /* ═══ TAP CONFIRMATION POPUP ═══ */
 #tap-menu {
