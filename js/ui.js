@@ -65,7 +65,7 @@ export function updateReturnBtn() {
 // ─── Resume banner ────────────────────────────────────
 export async function doResume() {
   if (!state.pendingResume) return;
-  const { page, sent } = state.pendingResume;
+  const { page, sent, word = 0 } = state.pendingResume;
   state.pendingResume = null;
   dismissResume();
 
@@ -75,12 +75,16 @@ export async function doResume() {
 
   await renderPage(page);
   state.curSent   = sent;
+  state.curWord   = word;
   state.pausePage = page;
   state.pauseSent = sent;
+  state.pauseWord = word;
   state.mode      = 'paused';
 
   if (sent >= 0 && sent < state.sentences.length) {
-    clearHL(); drawHL(sent); showTicker(state.sentences[sent].text);
+    const sentence = state.sentences[sent];
+    const start = sentence.words[word]?.start || 0;
+    clearHL(); drawHL(sent, word); showTicker(sentence.text.slice(start));
   }
   updateBtn();
   updateReturnBtn();
