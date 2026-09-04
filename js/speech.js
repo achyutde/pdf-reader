@@ -2,8 +2,8 @@
 // Text-to-speech engine: play, pause, resume, stop
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.0.1';
-import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.0.1';
+import { state } from './state.js?v=2.1.0';
+import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.1.0';
 
 const playb   = document.getElementById('playb');
 const fabPlay = document.getElementById('fab-play');
@@ -47,6 +47,7 @@ export function togglePlay() {
 }
 
 export function startFrom(pg, si, wi = 0) {
+  state.readingFinished = false;
   state.ttsPage = null;
   state.ttsSentences = [];
   updateReturn();
@@ -122,7 +123,9 @@ export function speakAt(si, wi = 0) {
   if (si >= sents.length) {
     const nextPage = ttsPageNow + 1;
     if (nextPage > state.numPages) {
+      state.readingFinished = true;
       hardStop();
+      savePos();
       toast('Finished reading 🎉');
       return;
     }
@@ -244,6 +247,8 @@ export function setSpeed(v) {
     cancelTTS();
     state.mode = 'speaking';
     speakAt(si, wi);
+  } else {
+    savePos();
   }
 }
 
