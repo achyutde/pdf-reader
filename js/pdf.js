@@ -59,8 +59,14 @@ function parseSentences(items, vp) {
     });
 
     const nextLine = lines[lineIndex + 1];
-    const tableBoundary = isTableLikeLine(line) || isTableLikeLine(nextLine);
-    const blockBoundary = nextLine && hasLargeVerticalGap(line, nextLine);
+    const currentIsTable = isTableLikeLine(line);
+    const nextIsTable = isTableLikeLine(nextLine);
+    const tableContinuation =
+      currentIsTable && nextLine && isContinuationOfTableRow(line, nextLine);
+    const tableBoundary =
+      nextIsTable || (currentIsTable && nextLine && !tableContinuation);
+    const blockBoundary = nextLine &&
+      (hasLargeVerticalGap(line, nextLine) || hasStrongStyleChange(line, nextLine));
     // Wrapped prose continues with a space. Tables and visibly separated
     // blocks keep a newline so their rows/headings remain independent.
     txt += tableBoundary || blockBoundary ? '\n' : ' ';
@@ -107,6 +113,23 @@ function isTableLikeLine(line) {
     if (gap >= threshold) return true;
   }
   return false;
+}
+
+function isContinuationOfTableRow(line, nextLine) {
+  if (isTableLikeLine(nextLine)) return false;
+  const currentLeft = Math.min(...line.items.map(entry => entry.rect.x));
+  const nextLeft = Math.min(...nextLine.items.map(entry => entry.rect.x));
+  const currentHeight = Math.max(...line.items.map(entry => entry.rect.h));
+  const nextHeight = Math.max(...nextLine.items.map(entry => entry.rect.h));
+  const closeVertically =
+    nextLine.centerY - line.centerY <= Math.max(currentHeight, nextHeight) * 1.55;
+  return closeVertically && nextLeft - currentLeft >= 80;
+}
+
+function hasStrongStyleChange(line, nextLine) {
+  const lineHeight = Math.max(...line.items.map(entry => entry.rect.h));
+  const nextHeight = Math.max(...nextLine.items.map(entry => entry.rect.h));
+  return Math.max(lineHeight, nextHeight) / Math.min(lineHeight, nextHeight) >= 1.25;
 }
 
 function hasLargeVerticalGap(line, nextLine) {
