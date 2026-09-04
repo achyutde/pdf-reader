@@ -96,24 +96,3 @@ export function dismissResume() {
   state.pendingResume = null;
   document.getElementById('resume-bar').classList.remove('on');
 }
-
-// ─── Swipe gesture (focus mode only) ─────────────────
-export function setupSwipe(onPrev, onNext) {
-  const content = document.getElementById('content');
-  let startX = 0, startY = 0;
-
-  content.addEventListener('touchstart', e => {
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-  }, { passive: true });
-
-  content.addEventListener('touchend', e => {
-    if (!document.body.classList.contains('reading')) return;
-    const dx = e.changedTouches[0].clientX - startX;
-    const dy = e.changedTouches[0].clientY - startY;
-    // Require a clearly horizontal swipe (dx dominant, > 60px)
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) {
-      if (dx < 0) onNext(); else onPrev();
-    }
-  }, { passive: true });
-}
