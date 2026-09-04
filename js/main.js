@@ -225,12 +225,14 @@ document.getElementById('view-btn').addEventListener('click', toggleView);
 document.getElementById('focus-btn').addEventListener('click', enterReading);
 
 // Direct page jump remains available alongside swipe navigation.
-document.getElementById('pg-input').addEventListener('keydown',
-  e => { if (e.key === 'Enter') jumpTo(); });
-document.getElementById('pg-input').addEventListener('input', function() {
-  this.value = this.value.replace(/[^0-9]/g, '');
-});
-document.getElementById('go-page').addEventListener('click', jumpTo);
+const pageInput = document.getElementById('pg-input');
+if (pageInput) {
+  pageInput.addEventListener('keydown', e => { if (e.key === 'Enter') jumpTo(); });
+  pageInput.addEventListener('input', function() {
+    this.value = this.value.replace(/[^0-9]/g, '');
+  });
+}
+document.getElementById('go-page')?.addEventListener('click', jumpTo);
 
 // Resume banner
 document.getElementById('rb-yes').addEventListener('click', doResume);
