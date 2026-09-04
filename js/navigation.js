@@ -145,10 +145,12 @@ export async function changePage(delta) {
 }
 
 export function jumpTo() {
-  let n = parseInt(document.getElementById('pg-input').value, 10);
+  const input = document.getElementById('pg-input');
+  if (!input) return;
+  let n = parseInt(input.value, 10);
   if (isNaN(n)) return;
   n = Math.max(1, Math.min(n, state.numPages));
-  document.getElementById('pg-input').value = n;
+  input.value = n;
   if (n === state.curPage) return;
   changePage(n - state.curPage);
 }
