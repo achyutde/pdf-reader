@@ -2,19 +2,20 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js?v=2.0.1';
+import { state }                                          from './state.js?v=2.1.0';
+import { startProgressScan }                              from './progress.js?v=2.1.0';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.0.1';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.1.0';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.0.1';
-import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.0.1';
+         startFrom, speakAt }                             from './speech.js?v=2.1.0';
+import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.1.0';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.0.1';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.1.0';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js?v=2.0.1';
+         updateReturnBtn }                                from './ui.js?v=2.1.0';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -43,12 +44,24 @@ async function initPDF(data) {
   document.getElementById('canvas-wrap').classList.add('on');
   document.getElementById('page-jump').classList.add('on');
   document.getElementById('page-total').textContent   = `of ${state.numPages}`;
+  const pageSelect = document.getElementById('pg-select');
+  pageSelect.innerHTML = '';
+  const pageOptions = document.createDocumentFragment();
+  for (let page = 1; page <= state.numPages; page++) {
+    const option = document.createElement('option');
+    option.value = page;
+    option.textContent = page;
+    pageOptions.appendChild(option);
+  }
+  pageSelect.appendChild(pageOptions);
+  pageSelect.disabled = false;
   document.getElementById('bm-btn').disabled           = false;
   document.getElementById('focus-btn').disabled        = false;
   enableControls();
 
   await renderPage(1);
   checkSavedPosition();
+  startProgressScan();
 }
 
 // ─── Tap-to-position popup ────────────────────────────
@@ -224,15 +237,10 @@ document.getElementById('saveb').addEventListener('click', addBM);
 document.getElementById('view-btn').addEventListener('click', toggleView);
 document.getElementById('focus-btn').addEventListener('click', enterReading);
 
-// Direct page jump remains available alongside swipe navigation.
-const pageInput = document.getElementById('pg-input');
-if (pageInput) {
-  pageInput.addEventListener('keydown', e => { if (e.key === 'Enter') jumpTo(); });
-  pageInput.addEventListener('input', function() {
-    this.value = this.value.replace(/[^0-9]/g, '');
-  });
-}
-document.getElementById('go-page')?.addEventListener('click', jumpTo);
+// Page dropdown remains available alongside swipe navigation.
+document.getElementById('pg-select').addEventListener('change', function() {
+  jumpTo(parseInt(this.value, 10));
+});
 
 // Resume banner
 document.getElementById('rb-yes').addEventListener('click', doResume);
@@ -294,42 +302,32 @@ document.addEventListener('click', e => {
   }
 }, { capture: true });
 
-// Canvas tap/swipe. Touch Events are used for broad mobile support; the
-// synthetic click that follows a touch is suppressed to avoid double actions.
+// Canvas tap/swipe. Pointer Events handle mouse, pen, and touch with one
+// gesture path; a gesture can select a word or change a page, never both.
 const hlCanvas = document.getElementById('hl-canvas');
-let touchStart = null;
-let suppressClickUntil = 0;
+let pointerStart = null;
 
-hlCanvas.addEventListener('touchstart', e => {
-  if (e.touches.length !== 1) { touchStart = null; return; }
-  const t = e.touches[0];
-  touchStart = { x: t.clientX, y: t.clientY };
-}, { passive: true });
+hlCanvas.addEventListener('pointerdown', e => {
+  if (!e.isPrimary) return;
+  pointerStart = { id: e.pointerId, x: e.clientX, y: e.clientY };
+});
 
-hlCanvas.addEventListener('touchend', e => {
-  if (!touchStart || e.changedTouches.length !== 1) return;
-  const t = e.changedTouches[0];
-  const dx = t.clientX - touchStart.x;
-  const dy = t.clientY - touchStart.y;
-  touchStart = null;
-  suppressClickUntil = Date.now() + 700;
+hlCanvas.addEventListener('pointerup', e => {
+  if (!pointerStart || pointerStart.id !== e.pointerId) return;
+  const dx = e.clientX - pointerStart.x;
+  const dy = e.clientY - pointerStart.y;
+  pointerStart = null;
 
-  if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-    e.preventDefault();
+  if (Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
     changePage(dx < 0 ? 1 : -1);
     return;
   }
-  if (Math.abs(dx) <= 12 && Math.abs(dy) <= 12) {
-    e.preventDefault();
-    onTap({ clientX: t.clientX, clientY: t.clientY });
+  if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) {
+    onTap({ clientX: e.clientX, clientY: e.clientY });
   }
-}, { passive: false });
-
-hlCanvas.addEventListener('touchcancel', () => { touchStart = null; });
-hlCanvas.addEventListener('click', e => {
-  if (Date.now() < suppressClickUntil) return;
-  onTap(e);
 });
+
+hlCanvas.addEventListener('pointercancel', () => { pointerStart = null; });
 
 // Voices
 speechSynthesis.onvoiceschanged = refreshVoices;
