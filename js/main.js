@@ -39,6 +39,7 @@ async function initPDF(data) {
   state.pauseWord    = 0;
   state.ttsPage      = null;
   state.ttsSentences = [];
+  state.readingFinished = false;
 
   document.getElementById('drop-zone').style.display  = 'none';
   document.getElementById('canvas-wrap').classList.add('on');
