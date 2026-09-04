@@ -40,6 +40,10 @@ async function initPDF(data) {
   state.ttsPage      = null;
   state.ttsSentences = [];
   state.readingFinished = false;
+  state.progressScanId += 1;
+  state.pageWordCounts = [];
+  state.totalWords = 0;
+  state.scannedPages = 0;
 
   document.getElementById('drop-zone').style.display  = 'none';
   document.getElementById('canvas-wrap').classList.add('on');
