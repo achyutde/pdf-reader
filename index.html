@@ -11,7 +11,7 @@
 
 <!-- Top Bar -->
 <div id="topbar">
-  <h1>📖 PDF Reader <span id="app-version">v2.0.1</span></h1>
+  <h1>📖 PDF Reader <span id="app-version">v2.1.0</span></h1>
   <button class="top-btn">Open PDF</button>
   <button class="top-btn sec" id="bm-btn"    disabled>🔖 Bookmarks</button>
   <button class="top-btn sec" id="saveb"     disabled>🔖 Save</button>
@@ -19,9 +19,10 @@
   <button class="top-btn sec" id="focus-btn" disabled>⛶ Focus</button>
   <input type="file" id="file-input" accept="application/pdf" />
   <div id="page-jump">
-    <label for="pg-input">Page</label>
-    <input type="number" id="pg-input" min="1" placeholder="—" inputmode="numeric" />
-    <button class="top-btn sec" id="go-page">Go</button>
+    <label for="pg-select">Page</label>
+    <select id="pg-select" aria-label="Go to page" disabled>
+      <option value="">—</option>
+    </select>
     <span id="page-total">of —</span>
   </div>
 </div>
@@ -76,6 +77,16 @@
 
 <!-- Sentence ticker -->
 <div id="ticker"></div>
+
+<!-- Reading progress (stays visible in focus mode) -->
+<div id="reading-progress" role="progressbar" aria-label="PDF reading progress"
+     aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+  <div id="progress-meta">
+    <span id="progress-percent">0%</span>
+    <span id="progress-remaining">Calculating…</span>
+  </div>
+  <div id="progress-track"><div id="progress-fill"></div></div>
+</div>
 
 <!-- Controls -->
 <div id="controls">
