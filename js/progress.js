@@ -14,6 +14,7 @@ function activeSentences() {
 }
 
 function positionFraction() {
+  if (state.readingFinished) return 1;
   if (!state.pdf || !state.numPages) return 0;
   const page = state.ttsPage ?? state.curPage;
   const sentences = activeSentences();
@@ -30,6 +31,7 @@ function positionFraction() {
 }
 
 function exactWordProgress() {
+  if (state.readingFinished) return 1;
   if (state.scannedPages !== state.numPages || !state.totalWords) return null;
   const page = state.ttsPage ?? state.curPage;
   const before = state.pageWordCounts
