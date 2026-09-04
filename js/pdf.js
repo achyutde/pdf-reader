@@ -2,8 +2,8 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.1.0';
-import { updateProgress } from './progress.js?v=2.1.0';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.0';
+import { updateProgress } from './progress.js?v=2.2.0';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -44,13 +44,20 @@ export async function renderPage(n) {
 // Keep sentence-level speech, but retain a character range and rectangle for
 // each word so taps and the moving three-word highlight are precise.
 function parseSentences(items, vp) {
+  const lines = orderIntoVisualLines(items, vp);
   let txt = '';
   const map = [];
-  items.forEach((item, i) => {
-    if (!item.str?.trim()) return;
-    const s = txt.length;
-    txt += item.str + ' ';
-    map.push({ s, e: s + item.str.length, i });
+
+  // PDF content streams are not guaranteed to follow visual reading order.
+  // Build the speech stream from page geometry instead: top-to-bottom lines,
+  // then left-to-right items. A newline keeps table rows independent.
+  lines.forEach(line => {
+    line.items.forEach(({ item, index }) => {
+      const s = txt.length;
+      txt += item.str + ' ';
+      map.push({ s, e: s + item.str.length, i: index });
+    });
+    txt += '\n';
   });
 
   const rx = /[^.!?…\n]+(?:[.!?…]+["']?(?=\s|$)|\n)|[^.!?…\n]+$/g;
@@ -82,6 +89,35 @@ function parseSentences(items, vp) {
     cur += raw.length;
   });
   return { sentences, sentRects };
+}
+
+function orderIntoVisualLines(items, vp) {
+  const positioned = items
+    .map((item, index) => ({ item, index, rect: itemRect(item, vp) }))
+    .filter(({ item, rect }) =>
+      item.str?.trim() &&
+      Number.isFinite(rect.x) && Number.isFinite(rect.y) &&
+      rect.w > 0 && rect.h > 0
+    )
+    .sort((a, b) => (a.rect.y + a.rect.h / 2) - (b.rect.y + b.rect.h / 2));
+
+  const lines = [];
+  positioned.forEach(entry => {
+    const centerY = entry.rect.y + entry.rect.h / 2;
+    const previous = lines[lines.length - 1];
+    const tolerance = Math.max(4, entry.rect.h * 0.55);
+    if (!previous || Math.abs(centerY - previous.centerY) > tolerance) {
+      lines.push({ centerY, items: [entry] });
+    } else {
+      previous.items.push(entry);
+      previous.centerY =
+        previous.items.reduce((sum, value) => sum + value.rect.y + value.rect.h / 2, 0) /
+        previous.items.length;
+    }
+  });
+
+  lines.forEach(line => line.items.sort((a, b) => a.rect.x - b.rect.x));
+  return lines;
 }
 
 function rangeRect(start, end, map, items, vp) {

@@ -2,13 +2,12 @@
 // Text-to-speech engine: play, pause, resume, stop
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.1.0';
-import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.1.0';
+import { state } from './state.js?v=2.2.0';
+import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.2.0';
 
 const playb   = document.getElementById('playb');
 const fabPlay = document.getElementById('fab-play');
 const ticker  = document.getElementById('ticker');
-let boundaryFallback = null;
 let speechRunId = 0;
 
 export function refreshVoices() {
@@ -88,32 +87,6 @@ function setCurrentWord(si, wi) {
   savePos();
 }
 
-function wordAtCharacter(words, charIndex) {
-  let found = 0;
-  for (let i = 0; i < words.length; i++) {
-    if (words[i].start <= charIndex) found = i;
-    if (words[i].end > charIndex) break;
-  }
-  return found;
-}
-
-function startBoundaryFallback(si, startWord) {
-  clearInterval(boundaryFallback);
-  const wordsPerMinute = 180 * state.rate;
-  const msPerWord = Math.max(140, 60000 / wordsPerMinute);
-  let wi = startWord;
-  boundaryFallback = setInterval(() => {
-    if (state.mode !== 'speaking' || state.curSent !== si) {
-      clearInterval(boundaryFallback);
-      return;
-    }
-    wi += 1;
-    const words = ttsSents()[si]?.words || [];
-    if (wi < words.length) setCurrentWord(si, wi);
-    else clearInterval(boundaryFallback);
-  }, msPerWord);
-}
-
 export function speakAt(si, wi = 0) {
   if (state.mode !== 'speaking') return;
   const runId = ++speechRunId;
@@ -154,9 +127,14 @@ export function speakAt(si, wi = 0) {
 
   const sentence = sents[si];
   const words = sentence.words || [];
-  const startWord = Math.max(0, Math.min(wi, Math.max(0, words.length - 1)));
-  const startChar = words[startWord]?.start || 0;
-  const spokenText = sentence.text.slice(startChar);
+  if (!words.length) {
+    speakAt(si + 1, 0);
+    return;
+  }
+
+  const startWord = Math.max(0, Math.min(wi, words.length - 1));
+  const nextWord = Math.min(words.length, startWord + 3);
+  const spokenText = words.slice(startWord, nextWord).map(word => word.text).join(' ');
 
   state.curSent = si;
   state.pausePage = ttsPageNow;
@@ -164,43 +142,27 @@ export function speakAt(si, wi = 0) {
   setCurrentWord(si, startWord);
   showTicker(spokenText);
 
+  // The utterance contains exactly the three highlighted words. Advancing only
+  // after it ends guarantees that speech and highlighting cannot drift apart.
   const u = new SpeechSynthesisUtterance(spokenText);
   u.rate = state.rate;
   u.pitch = 1;
   if (state.voice) u.voice = state.voice;
-
-  let gotBoundary = false;
-  const fallbackDelay = setTimeout(() => {
-    if (runId === speechRunId && !gotBoundary && state.mode === 'speaking' && state.curSent === si) {
-      startBoundaryFallback(si, startWord);
-    }
-  }, 900);
-
-  u.onboundary = event => {
-    if (runId !== speechRunId) return;
-    if (event.name && event.name !== 'word') return;
-    gotBoundary = true;
-    clearInterval(boundaryFallback);
-    const fullCharIndex = startChar + event.charIndex;
-    setCurrentWord(si, wordAtCharacter(words, fullCharIndex));
-  };
   u.onend = () => {
-    clearTimeout(fallbackDelay);
-    clearInterval(boundaryFallback);
-    if (runId === speechRunId && state.mode === 'speaking') speakAt(si + 1, 0);
+    if (runId !== speechRunId || state.mode !== 'speaking') return;
+    if (nextWord < words.length) speakAt(si, nextWord);
+    else speakAt(si + 1, 0);
   };
   u.onerror = err => {
-    clearTimeout(fallbackDelay);
-    clearInterval(boundaryFallback);
-    if (runId === speechRunId && err.error !== 'interrupted' && state.mode === 'speaking') speakAt(si + 1, 0);
+    if (runId !== speechRunId || state.mode !== 'speaking' || err.error === 'interrupted') return;
+    if (nextWord < words.length) speakAt(si, nextWord);
+    else speakAt(si + 1, 0);
   };
   speechSynthesis.speak(u);
 }
 
 export function cancelTTS() {
   speechRunId += 1;
-  clearInterval(boundaryFallback);
-  boundaryFallback = null;
   speechSynthesis.cancel();
 }
 
