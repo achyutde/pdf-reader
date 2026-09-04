@@ -9,6 +9,7 @@ const playb   = document.getElementById('playb');
 const fabPlay = document.getElementById('fab-play');
 const ticker  = document.getElementById('ticker');
 let boundaryFallback = null;
+let speechRunId = 0;
 
 export function refreshVoices() {
   const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
@@ -114,6 +115,7 @@ function startBoundaryFallback(si, startWord) {
 
 export function speakAt(si, wi = 0) {
   if (state.mode !== 'speaking') return;
+  const runId = ++speechRunId;
   const sents = ttsSents();
   const ttsPageNow = state.ttsPage ?? state.curPage;
 
@@ -166,12 +168,13 @@ export function speakAt(si, wi = 0) {
 
   let gotBoundary = false;
   const fallbackDelay = setTimeout(() => {
-    if (!gotBoundary && state.mode === 'speaking' && state.curSent === si) {
+    if (runId === speechRunId && !gotBoundary && state.mode === 'speaking' && state.curSent === si) {
       startBoundaryFallback(si, startWord);
     }
   }, 900);
 
   u.onboundary = event => {
+    if (runId !== speechRunId) return;
     if (event.name && event.name !== 'word') return;
     gotBoundary = true;
     clearInterval(boundaryFallback);
@@ -181,17 +184,18 @@ export function speakAt(si, wi = 0) {
   u.onend = () => {
     clearTimeout(fallbackDelay);
     clearInterval(boundaryFallback);
-    if (state.mode === 'speaking') speakAt(si + 1, 0);
+    if (runId === speechRunId && state.mode === 'speaking') speakAt(si + 1, 0);
   };
   u.onerror = err => {
     clearTimeout(fallbackDelay);
     clearInterval(boundaryFallback);
-    if (err.error !== 'interrupted' && state.mode === 'speaking') speakAt(si + 1, 0);
+    if (runId === speechRunId && err.error !== 'interrupted' && state.mode === 'speaking') speakAt(si + 1, 0);
   };
   speechSynthesis.speak(u);
 }
 
 export function cancelTTS() {
+  speechRunId += 1;
   clearInterval(boundaryFallback);
   boundaryFallback = null;
   speechSynthesis.cancel();
