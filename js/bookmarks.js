@@ -18,14 +18,17 @@ const esc         = s   => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(
 // ─── Add ──────────────────────────────────────────────
 export function addBM() {
   if (!state.pdf) return;
-  const si   = Math.max(0, state.curSent);
-  const snip = state.sentences[si]?.text?.slice(0, 60) || `Page ${state.curPage}`;
+  const si = Math.max(0, state.curSent);
+  const wi = Math.max(0, state.curWord);
+  const sentence = state.sentences[si];
+  const start = sentence?.words?.[wi]?.start || 0;
+  const snip = sentence?.text?.slice(start, start + 60) || `Page ${state.curPage}`;
   const label = `Page ${state.curPage} — "${snip}${snip.length >= 60 ? '…' : ''}"`;
   const bms  = getBMs();
-  if (bms.find(b => b.page === state.curPage && b.si === si)) {
+  if (bms.find(b => b.page === state.curPage && b.si === si && (b.wi || 0) === wi)) {
     toast('Already bookmarked!'); return;
   }
-  bms.push({ page: state.curPage, si, label, ts: Date.now() });
+  bms.push({ page: state.curPage, si, wi, label, ts: Date.now() });
   putBMs(bms);
   toast('Bookmark saved 🔖');
 }
@@ -78,14 +81,19 @@ export function gotoBM(bm) {
 
   renderPage(bm.page).then(() => {
     const si    = Math.min(bm.si, state.sentences.length - 1);
+    const wi = Math.min(bm.wi || 0, Math.max(0, (state.sentences[si]?.words?.length || 1) - 1));
     state.curSent   = si;
+    state.curWord   = wi;
     state.pausePage = bm.page;
     state.pauseSent = si;
+    state.pauseWord = wi;
     state.mode      = 'paused';
-    clearHL(); drawHL(si); showTicker(state.sentences[si]?.text || '');
+    const sentence = state.sentences[si];
+    const start = sentence?.words?.[wi]?.start || 0;
+    clearHL(); drawHL(si, wi); showTicker(sentence?.text?.slice(start) || '');
     savePosition(); updateBtn();
     toast(`Jumped to page ${bm.page}`);
-    if (wasPlaying) startFrom(bm.page, si);
+    if (wasPlaying) startFrom(bm.page, si, wi);
   });
 }
 
@@ -148,7 +156,7 @@ export function importBMs(input) {
         const existing = getBMsByKey(k);
         const merged   = [...existing];
         v.forEach(bm => {
-          if (!merged.find(e => e.page === bm.page && e.si === bm.si)) {
+          if (!merged.find(e => e.page === bm.page && e.si === bm.si && (e.wi || 0) === (bm.wi || 0))) {
             merged.push(bm); count++;
           }
         });

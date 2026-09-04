@@ -31,8 +31,10 @@ export function moveSent(delta) {
         state.ttsPage      = ttsPageNow - 1;
         state.ttsSentences = sentences;
         state.curSent      = si;
+        state.curWord      = 0;
         state.pausePage    = state.ttsPage;
         state.pauseSent    = si;
+        state.pauseWord    = 0;
         updateReturnBtn();
         const text = sentences[si]?.text || '';
         if (state.ttsPage === state.curPage) {
@@ -60,8 +62,10 @@ export function moveSent(delta) {
         state.ttsPage      = nextTTSPage;
         state.ttsSentences = sentences;
         state.curSent      = 0;
+        state.curWord      = 0;
         state.pausePage    = state.ttsPage;
         state.pauseSent    = 0;
+        state.pauseWord    = 0;
         updateReturnBtn();
         const text = sentences[0]?.text || '';
         if (state.ttsPage === state.curPage) {
@@ -81,8 +85,10 @@ export function moveSent(delta) {
 
   // ── Same page ──
   state.curSent   = si;
+  state.curWord   = 0;
   state.pausePage = ttsPageNow;
   state.pauseSent = si;
+  state.pauseWord = 0;
   state.mode      = wasPlaying ? 'speaking' : 'paused';
 
   if (!state.ttsPage || state.ttsPage === state.curPage) {
@@ -128,18 +134,12 @@ export async function changePage(delta) {
     state.ttsPage      = null;
     state.ttsSentences = [];
     state.curSent      = 0;
+    state.curWord      = 0;
     state.pausePage    = next;
     state.pauseSent    = 0;
+    state.pauseWord    = 0;
     state.mode         = 'paused';
     clearHL(); drawHL(0); showTicker(state.sentences[0]?.text || '');
     savePosition(); updateBtn(); updateReturnBtn();
   }
-}
-
-export function jumpTo() {
-  let n = parseInt(document.getElementById('pg-input').value);
-  if (isNaN(n)) return;
-  n = Math.max(1, Math.min(n, state.numPages));
-  if (n === state.curPage) return;
-  changePage(n - state.curPage);
 }
