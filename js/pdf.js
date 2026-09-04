@@ -28,7 +28,8 @@ export async function renderPage(n) {
   state.sentRects = sentRects;
 
   state.curPage = n;
-  document.getElementById('pg-input').value = n;
+  const pageInput = document.getElementById('pg-input');
+  if (pageInput) pageInput.value = n;
   document.getElementById('prev-pg').disabled    = n <= 1;
   document.getElementById('next-pg').disabled    = n >= state.numPages;
   document.getElementById('edge-prev').disabled  = n <= 1;
