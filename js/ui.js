@@ -3,9 +3,9 @@
 //     swipe gesture, edge page-nav buttons
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.2.0';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.2.0';
-import { hardStop, updateBtn, startFrom } from './speech.js?v=2.2.0';
+import { state } from './state.js?v=2.2.1';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.2.1';
+import { hardStop, updateBtn, startFrom } from './speech.js?v=2.2.1';
 
 // ─── Toast ────────────────────────────────────────────
 let _toastTimer;

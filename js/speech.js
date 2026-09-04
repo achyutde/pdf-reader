@@ -2,8 +2,8 @@
 // Text-to-speech engine: play, pause, resume, stop
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.2.0';
-import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.2.0';
+import { state } from './state.js?v=2.2.1';
+import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.2.1';
 
 const playb   = document.getElementById('playb');
 const fabPlay = document.getElementById('fab-play');
@@ -78,12 +78,12 @@ function ttsSents() {
     : state.sentences;
 }
 
-function setCurrentWord(si, wi) {
+function setCurrentWord(si, wi, highlightCount = 3) {
   const sents = ttsSents();
   const max = Math.max(0, (sents[si]?.words?.length || 1) - 1);
   state.curWord = Math.max(0, Math.min(wi, max));
   state.pauseWord = state.curWord;
-  if (!state.ttsPage || state.ttsPage === state.curPage) drawHL(si, state.curWord);
+  if (!state.ttsPage || state.ttsPage === state.curPage) drawHL(si, state.curWord, highlightCount);
   savePos();
 }
 
@@ -133,30 +133,27 @@ export function speakAt(si, wi = 0) {
   }
 
   const startWord = Math.max(0, Math.min(wi, words.length - 1));
-  const nextWord = Math.min(words.length, startWord + 3);
-  const spokenText = words.slice(startWord, nextWord).map(word => word.text).join(' ');
+  const spokenText = sentence.text.slice(words[startWord].start);
 
   state.curSent = si;
   state.pausePage = ttsPageNow;
   state.pauseSent = si;
-  setCurrentWord(si, startWord);
+  setCurrentWord(si, startWord, words.length - startWord);
   showTicker(spokenText);
 
-  // The utterance contains exactly the three highlighted words. Advancing only
-  // after it ends guarantees that speech and highlighting cannot drift apart.
+  // The highlighted clause is exactly the text in this utterance, so speech
+  // and highlighting remain synchronized without word-boundary tracking.
   const u = new SpeechSynthesisUtterance(spokenText);
   u.rate = state.rate;
   u.pitch = 1;
   if (state.voice) u.voice = state.voice;
   u.onend = () => {
     if (runId !== speechRunId || state.mode !== 'speaking') return;
-    if (nextWord < words.length) speakAt(si, nextWord);
-    else speakAt(si + 1, 0);
+    speakAt(si + 1, 0);
   };
   u.onerror = err => {
     if (runId !== speechRunId || state.mode !== 'speaking' || err.error === 'interrupted') return;
-    if (nextWord < words.length) speakAt(si, nextWord);
-    else speakAt(si + 1, 0);
+    speakAt(si + 1, 0);
   };
   speechSynthesis.speak(u);
 }

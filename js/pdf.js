@@ -2,8 +2,8 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.0';
-import { updateProgress } from './progress.js?v=2.2.0';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.1';
+import { updateProgress } from './progress.js?v=2.2.1';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -60,7 +60,7 @@ function parseSentences(items, vp) {
     txt += '\n';
   });
 
-  const rx = /[^.!?…\n]+(?:[.!?…]+["']?(?=\s|$)|\n)|[^.!?…\n]+$/g;
+  const rx = /[^.!?…,:;—–\n]+(?:[.!?…,:;—–]+["']?(?=\s|$)|\n)|[^.!?…,:;—–\n]+$/g;
   const chunks = txt.match(rx) || [txt];
   const sentences = [];
   const sentRects = [];
@@ -171,11 +171,11 @@ export function clearHL() {
   hlCtx.clearRect(0, 0, hlCanvas.width, hlCanvas.height);
 }
 
-export function drawHL(si, wi = state.curWord) {
+export function drawHL(si, wi = state.curWord, wordCount = HIGHLIGHT_WORDS) {
   clearHL();
   if (state.ttsPage && state.ttsPage !== state.curPage) return;
   const words = state.sentences[si]?.words || [];
-  const rects = words.slice(Math.max(0, wi), Math.max(0, wi) + HIGHLIGHT_WORDS)
+  const rects = words.slice(Math.max(0, wi), Math.max(0, wi) + wordCount)
     .map(word => word.rect).filter(Boolean);
   if (!rects.length) return;
 
