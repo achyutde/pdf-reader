@@ -2,8 +2,8 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.1';
-import { updateProgress } from './progress.js?v=2.2.1';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.2';
+import { updateProgress } from './progress.js?v=2.2.2';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -50,14 +50,26 @@ function parseSentences(items, vp) {
 
   // PDF content streams are not guaranteed to follow visual reading order.
   // Build the speech stream from page geometry instead: top-to-bottom lines,
-  // then left-to-right items. A newline keeps table rows independent.
-  lines.forEach(line => {
+  // then left-to-right items. Wrapped prose lines are joined below.
+  lines.forEach((line, lineIndex) => {
     line.items.forEach(({ item, index }) => {
       const s = txt.length;
       txt += item.str + ' ';
       map.push({ s, e: s + item.str.length, i: index });
     });
-    txt += '\n';
+
+    const nextLine = lines[lineIndex + 1];
+    const currentIsTable = isTableLikeLine(line);
+    const nextIsTable = isTableLikeLine(nextLine);
+    const tableContinuation =
+      currentIsTable && nextLine && isContinuationOfTableRow(line, nextLine);
+    const tableBoundary =
+      nextIsTable || (currentIsTable && nextLine && !tableContinuation);
+    const blockBoundary = nextLine &&
+      (hasLargeVerticalGap(line, nextLine) || hasStrongStyleChange(line, nextLine));
+    // Wrapped prose continues with a space. Tables and visibly separated
+    // blocks keep a newline so their rows/headings remain independent.
+    txt += tableBoundary || blockBoundary ? '\n' : ' ';
   });
 
   const rx = /[^.!?…,:;—–\n]+(?:[.!?…,:;—–]+["']?(?=\s|$)|\n)|[^.!?…,:;—–\n]+$/g;
@@ -89,6 +101,41 @@ function parseSentences(items, vp) {
     cur += raw.length;
   });
   return { sentences, sentRects };
+}
+
+function isTableLikeLine(line) {
+  if (!line || line.items.length < 2) return false;
+  for (let i = 1; i < line.items.length; i++) {
+    const previous = line.items[i - 1].rect;
+    const current = line.items[i].rect;
+    const gap = current.x - (previous.x + previous.w);
+    const threshold = Math.max(48, Math.max(previous.h, current.h) * 2);
+    if (gap >= threshold) return true;
+  }
+  return false;
+}
+
+function isContinuationOfTableRow(line, nextLine) {
+  if (isTableLikeLine(nextLine)) return false;
+  const currentLeft = Math.min(...line.items.map(entry => entry.rect.x));
+  const nextLeft = Math.min(...nextLine.items.map(entry => entry.rect.x));
+  const currentHeight = Math.max(...line.items.map(entry => entry.rect.h));
+  const nextHeight = Math.max(...nextLine.items.map(entry => entry.rect.h));
+  const closeVertically =
+    nextLine.centerY - line.centerY <= Math.max(currentHeight, nextHeight) * 1.55;
+  return closeVertically && nextLeft - currentLeft >= 80;
+}
+
+function hasStrongStyleChange(line, nextLine) {
+  const lineHeight = Math.max(...line.items.map(entry => entry.rect.h));
+  const nextHeight = Math.max(...nextLine.items.map(entry => entry.rect.h));
+  return Math.max(lineHeight, nextHeight) / Math.min(lineHeight, nextHeight) >= 1.25;
+}
+
+function hasLargeVerticalGap(line, nextLine) {
+  const lineHeight = Math.max(...line.items.map(entry => entry.rect.h));
+  const nextHeight = Math.max(...nextLine.items.map(entry => entry.rect.h));
+  return nextLine.centerY - line.centerY > Math.max(lineHeight, nextHeight) * 1.55;
 }
 
 function orderIntoVisualLines(items, vp) {
