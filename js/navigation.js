@@ -143,11 +143,3 @@ export async function changePage(delta) {
     savePosition(); updateBtn(); updateReturnBtn();
   }
 }
-
-export function jumpTo() {
-  let n = parseInt(document.getElementById('pg-input').value);
-  if (isNaN(n)) return;
-  n = Math.max(1, Math.min(n, state.numPages));
-  if (n === state.curPage) return;
-  changePage(n - state.curPage);
-}
