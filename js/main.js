@@ -5,7 +5,7 @@
 import { state }                                          from './state.js';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker }                                     from './pdf.js';
+         showTicker, findWordAtPoint }                                     from './pdf.js';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
          startFrom, speakAt }                             from './speech.js';
@@ -32,8 +32,10 @@ async function initPDF(data) {
   state.numPages     = state.pdf.numPages;
   state.curPage      = 1;
   state.curSent      = 0;
+  state.curWord      = 0;
   state.pausePage    = 1;
   state.pauseSent    = 0;
+  state.pauseWord    = 0;
   state.ttsPage      = null;
   state.ttsSentences = [];
 
@@ -62,16 +64,11 @@ function onTap(e) {
   const cx = (e.clientX - r.left) * sx;
   const cy = (e.clientY - r.top)  * sy;
 
-  let found = -1;
-  for (let i = 0; i < state.sentRects.length; i++) {
-    const rc = state.sentRects[i];
-    if (!rc) continue;
-    if (cx >= rc.x - 8 && cx <= rc.x + rc.w + 8 &&
-        cy >= rc.y - 8 && cy <= rc.y + rc.h + 8) { found = i; break; }
-  }
+  const found = findWordAtPoint(cx, cy);
 
-  // Tap outside a sentence — just dismiss any open popup
-  if (found < 0) { dismissTapMenu(); return; }
+  // Tap outside a word — just dismiss any open popup
+  if (!found) { dismissTapMenu(); return; }
+  const { si: foundSent, wi: foundWord } = found;
 
   // Dismiss any existing popup silently before showing a new one
   dismissTapMenuDOM();
@@ -80,9 +77,11 @@ function onTap(e) {
   // Snapshot state so we can restore on cancel
   _tapSnap = {
     curSent:      state.curSent,
+    curWord:      state.curWord,
     mode:         state.mode,
     pausePage:    state.pausePage,
     pauseSent:    state.pauseSent,
+    pauseWord:    state.pauseWord,
     ttsPage:      state.ttsPage,
     ttsSentences: state.ttsSentences,
     wasPlaying:   state.mode === 'speaking',
@@ -91,14 +90,15 @@ function onTap(e) {
   // Temporarily pause TTS (keep position, don't destroy state)
   if (_tapSnap.wasPlaying) cancelTTS();
 
-  // Preview: highlight tapped sentence
-  clearHL(); drawHL(found);
-  showTicker(state.sentences[found].text);
+  // Preview the tapped word and the next two words.
+  clearHL(); drawHL(foundSent, foundWord);
+  const sentence = state.sentences[foundSent];
+  showTicker(sentence.text.slice(sentence.words[foundWord].start));
 
   // Populate and position popup
   document.getElementById('tap-preview').textContent =
-    state.sentences[found].text.slice(0, 120);
-  showTapMenu(found, e.clientX, e.clientY);
+    sentence.text.slice(sentence.words[foundWord].start, sentence.words[foundWord].start + 120);
+  showTapMenu(foundSent, e.clientX, e.clientY);
 
   // Wire confirm button (re-wire each tap to capture current `found`)
   document.getElementById('tap-read').onclick = () => {
@@ -106,14 +106,17 @@ function onTap(e) {
     _tapSnap = null;
     dismissTapMenuDOM();
 
-    state.curSent   = found;
+    state.curSent   = foundSent;
+    state.curWord   = foundWord;
     state.pausePage = state.curPage;
-    state.pauseSent = found;
+    state.pauseSent = foundSent;
+    state.pauseWord = foundWord;
     state.mode      = 'paused';
-    clearHL(); drawHL(found); showTicker(state.sentences[found].text);
+    clearHL(); drawHL(foundSent, foundWord);
+    showTicker(sentence.text.slice(sentence.words[foundWord].start));
     updateBtn(); savePosition();
-    // Always start reading from tapped sentence
-    startFrom(state.curPage, found);
+    // Start from the exact word the user tapped.
+    startFrom(state.curPage, foundSent, foundWord);
   };
 
   // Auto-dismiss after 4 s
@@ -166,7 +169,7 @@ function dismissTapMenu() {
 
   // Restore visual state
   if (snap.curSent >= 0 && state.sentRects[snap.curSent]) {
-    clearHL(); drawHL(snap.curSent);
+    clearHL(); drawHL(snap.curSent, snap.curWord);
     showTicker(state.sentences[snap.curSent]?.text || '');
   } else {
     clearHL();
@@ -178,19 +181,23 @@ function dismissTapMenu() {
     state.ttsPage      = snap.ttsPage;
     state.ttsSentences = snap.ttsSentences;
     state.curSent      = snap.curSent;
+    state.curWord      = snap.curWord;
     state.pausePage    = snap.pausePage;
     state.pauseSent    = snap.pauseSent;
+    state.pauseWord    = snap.pauseWord;
     const resumeSent   = snap.curSent >= 0 ? snap.curSent : snap.pauseSent;
     if (snap.ttsPage && snap.ttsPage !== state.curPage) {
-      startFrom(snap.ttsPage, resumeSent);
+      startFrom(snap.ttsPage, resumeSent, snap.curWord);
     } else {
-      speakAt(resumeSent);
+      speakAt(resumeSent, snap.curWord);
     }
     updateBtn();
   } else {
     state.curSent   = snap.curSent;
+    state.curWord   = snap.curWord;
     state.pausePage = snap.pausePage;
     state.pauseSent = snap.pauseSent;
+    state.pauseWord = snap.pauseWord;
     state.mode      = snap.mode;
     updateBtn();
   }
@@ -240,7 +247,7 @@ document.getElementById('return-btn').addEventListener('click', async () => {
   state.ttsPage      = null;
   state.ttsSentences = [];
   if (state.mode !== 'stopped' && state.curSent >= 0) {
-    clearHL(); drawHL(state.curSent);
+    clearHL(); drawHL(state.curSent, state.curWord);
   }
   updateReturnBtn();
 });
