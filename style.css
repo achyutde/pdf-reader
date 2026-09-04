@@ -60,7 +60,19 @@ body.reading #topbar { transform: translateY(-110%); }
 }
 #page-jump.on { display: flex; }
 #page-jump { font-size: 13px; color: #777; }
-#page-current { color: #aac4e0; font-weight: 600; }
+#page-jump label { white-space: nowrap; }
+#page-jump input {
+  width: 68px;
+  background: #0f3460;
+  color: white;
+  border: 1px solid #1a4a8a;
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 14px;
+  text-align: center;
+  outline: none;
+}
+#page-jump input:focus { border-color: #e94560; }
 #page-total { white-space: nowrap; }
 
 /* ═══ RESUME BANNER ═══ */
