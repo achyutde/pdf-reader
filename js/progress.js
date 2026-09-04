@@ -83,7 +83,7 @@ export function updateProgress() {
     : average * state.numPages;
   const remainingWords = Math.max(0, estimatedTotal * (1 - fraction));
   const minutes = remainingWords / (BASE_WORDS_PER_MINUTE * state.rate);
-  remainingEl.textContent = formatRemaining(minutes);
+  remainingEl.textContent = fraction >= 1 ? 'Complete' : formatRemaining(minutes);
 }
 
 export async function startProgressScan() {
