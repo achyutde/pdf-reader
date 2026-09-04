@@ -2,7 +2,7 @@
 // Reading progress and approximate time remaining
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.2.0';
+import { state } from './state.js?v=2.2.1';
 
 const BASE_WORDS_PER_MINUTE = 180;
 const FALLBACK_WORDS_PER_PAGE = 250;
