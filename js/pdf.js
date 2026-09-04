@@ -2,7 +2,7 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.0.1';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -28,7 +28,7 @@ export async function renderPage(n) {
   state.sentRects = sentRects;
 
   state.curPage = n;
-  document.getElementById('page-current').textContent = n;
+  document.getElementById('pg-input').value = n;
   document.getElementById('prev-pg').disabled    = n <= 1;
   document.getElementById('next-pg').disabled    = n >= state.numPages;
   document.getElementById('edge-prev').disabled  = n <= 1;
