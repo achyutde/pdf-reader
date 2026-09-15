@@ -3,9 +3,9 @@
 //     swipe gesture, edge page-nav buttons
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.2.2';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.2.2';
-import { hardStop, updateBtn, startFrom } from './speech.js?v=2.2.2';
+import { state } from './state.js?v=2.2.3';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.2.3';
+import { hardStop, updateBtn, startFrom } from './speech.js?v=2.2.3';
 
 // ─── Toast ────────────────────────────────────────────
 let _toastTimer;
@@ -73,7 +73,9 @@ export async function doResume() {
   state.ttsPage      = null;
   state.ttsSentences = [];
 
-  await renderPage(page);
+  // Avoid renderPage's normal scroll-to-top animation. Starting that animation
+  // immediately before restoring the saved highlight can lock mobile scrolling.
+  await renderPage(page, { scrollToTop: false });
   state.curSent   = sent;
   state.curWord   = word;
   state.pausePage = page;
@@ -84,7 +86,10 @@ export async function doResume() {
   if (sent >= 0 && sent < state.sentences.length) {
     const sentence = state.sentences[sent];
     const start = sentence.words[word]?.start || 0;
-    clearHL(); drawHL(sent, word); showTicker(sentence.text.slice(start));
+    // Let the canvas and scroll container settle, then perform one instant
+    // position change instead of competing smooth-scroll animations.
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    clearHL(); drawHL(sent, word, 3, 'auto'); showTicker(sentence.text.slice(start));
   }
   updateBtn();
   updateReturnBtn();
