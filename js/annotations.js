@@ -252,7 +252,9 @@ export function initAnnotations(toast) {
   const finishGesture = event => {
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     if (gesture.changed) writePages(gesture.pages);
-    inputCanvas.releasePointerCapture?.(event.pointerId);
+    if (inputCanvas.hasPointerCapture?.(event.pointerId)) {
+      inputCanvas.releasePointerCapture(event.pointerId);
+    }
     gesture = null;
   };
   inputCanvas.addEventListener('pointerup', finishGesture);
