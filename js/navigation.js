@@ -2,12 +2,12 @@
 // Page and sentence navigation
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.2.3';
+import { state } from './state.js?v=2.2.2';
 import { renderPage, clearHL, drawHL, showTicker,
-         savePosition, getPageSentences }           from './pdf.js?v=2.2.3';
+         savePosition, getPageSentences }           from './pdf.js?v=2.2.2';
 import { cancelTTS, speakAt, hardStop,
-         updateBtn, startFrom }                     from './speech.js?v=2.2.3';
-import { updateReturnBtn }                           from './ui.js?v=2.2.3';
+         updateBtn, startFrom }                     from './speech.js?v=2.2.2';
+import { updateReturnBtn }                           from './ui.js?v=2.2.2';
 
 // ─── Sentence navigation ──────────────────────────────
 // moveSent always navigates the TTS position (not the display page).
