@@ -3,10 +3,11 @@
 // export to JSON file, import from JSON file
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.2.2';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.2.2';
-import { hardStop, startFrom, updateBtn } from './speech.js?v=2.2.2';
-import { toast } from './ui.js?v=2.2.2';
+import { state } from './state.js?v=2.3.0';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.0';
+import { hardStop, startFrom, updateBtn } from './speech.js?v=2.3.0';
+import { toast } from './ui.js?v=2.3.0';
+import { renderAnnotations } from './annotations.js?v=2.3.0';
 
 // ─── Storage helpers ──────────────────────────────────
 const bmKey       = ()  => 'bm:' + state.fileName;
@@ -105,69 +106,118 @@ function delBM(i) {
   openBM(); // refresh the sheet
 }
 
-// ─── Export (Save As dialog → JSON) ──────────────────
+// ─── Export bookmarks and annotations to one JSON file ─
 export async function exportBMs() {
-  const all = {};
+  const entries = {};
   for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith('bm:')) {
-      try { all[k] = JSON.parse(localStorage.getItem(k)); } catch {}
-    }
+    const key = localStorage.key(i);
+    if (!key || (!key.startsWith('bm:') && !key.startsWith('ann:'))) continue;
+    try { entries[key] = JSON.parse(localStorage.getItem(key)); } catch {}
   }
-  if (!Object.keys(all).length) { toast('No bookmarks to export'); return; }
-  const json = JSON.stringify(all, null, 2);
+  if (!Object.keys(entries).length) { toast('No bookmarks or annotations to export'); return; }
+
+  const json = JSON.stringify({
+    format: 'pdf-reader-backup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    entries,
+  }, null, 2);
 
   if (window.showSaveFilePicker) {
     try {
       const handle = await window.showSaveFilePicker({
-        suggestedName: 'pdf-reader-bookmarks.json',
+        suggestedName: 'pdf-reader-data.json',
         types: [{ description: 'JSON File', accept: { 'application/json': ['.json'] } }],
       });
       const writable = await handle.createWritable();
       await writable.write(json);
       await writable.close();
-      toast('Bookmarks exported ✓');
+      toast('Reader data exported ✓');
       return;
-    } catch (e) {
-      if (e.name === 'AbortError') return;
+    } catch (error) {
+      if (error.name === 'AbortError') return;
     }
   }
 
-  // Fallback for Firefox / Safari
   const blob = new Blob([json], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = 'pdf-reader-bookmarks.json'; a.click();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'pdf-reader-data.json';
+  anchor.click();
   URL.revokeObjectURL(url);
-  toast('Bookmarks exported ✓');
+  toast('Reader data exported ✓');
 }
 
-// ─── Import (merge, no duplicates) ───────────────────
+function mergeBookmarks(key, incoming) {
+  if (!Array.isArray(incoming)) return 0;
+  const existing = getBMsByKey(key);
+  let count = 0;
+  incoming.forEach(bookmark => {
+    if (!existing.find(item => item.page === bookmark.page && item.si === bookmark.si &&
+        (item.wi || 0) === (bookmark.wi || 0))) {
+      existing.push(bookmark);
+      count++;
+    }
+  });
+  localStorage.setItem(key, JSON.stringify(existing));
+  return count;
+}
+
+function mergeAnnotations(key, incoming) {
+  if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return 0;
+  let existing = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
+  } catch {}
+
+  let count = 0;
+  Object.entries(incoming).forEach(([page, strokes]) => {
+    if (!Array.isArray(strokes)) return;
+    if (!Array.isArray(existing[page])) existing[page] = [];
+    const signatures = new Set(existing[page].map(stroke => stroke.id || JSON.stringify(stroke)));
+    strokes.forEach(stroke => {
+      if (!stroke || !Array.isArray(stroke.points)) return;
+      const signature = stroke.id || JSON.stringify(stroke);
+      if (signatures.has(signature)) return;
+      existing[page].push(stroke);
+      signatures.add(signature);
+      count++;
+    });
+  });
+  localStorage.setItem(key, JSON.stringify(existing));
+  return count;
+}
+
+// Accept both v2.3 backups and older bookmark-only JSON files.
 export function importBMs(input) {
-  const f = input.files[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = ev => {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = event => {
     try {
-      const data = JSON.parse(ev.target.result);
-      let count = 0;
-      Object.entries(data).forEach(([k, v]) => {
-        if (!k.startsWith('bm:') || !Array.isArray(v)) return;
-        const existing = getBMsByKey(k);
-        const merged   = [...existing];
-        v.forEach(bm => {
-          if (!merged.find(e => e.page === bm.page && e.si === bm.si && (e.wi || 0) === (bm.wi || 0))) {
-            merged.push(bm); count++;
-          }
-        });
-        localStorage.setItem(k, JSON.stringify(merged));
+      const data = JSON.parse(event.target.result);
+      const entries = data?.format === 'pdf-reader-backup' && data.entries
+        ? data.entries
+        : data;
+      if (!entries || typeof entries !== 'object' || Array.isArray(entries)) {
+        throw new Error('Invalid backup');
+      }
+
+      let bookmarkCount = 0;
+      let annotationCount = 0;
+      Object.entries(entries).forEach(([key, value]) => {
+        if (key.startsWith('bm:')) bookmarkCount += mergeBookmarks(key, value);
+        if (key.startsWith('ann:')) annotationCount += mergeAnnotations(key, value);
       });
-      toast(`Imported ${count} new bookmark(s) ✓`);
+      renderAnnotations();
+      toast(`Imported ${bookmarkCount} bookmark(s), ${annotationCount} annotation(s) ✓`);
       openBM();
     } catch {
-      toast('Invalid bookmark file');
+      toast('Invalid reader data file');
     }
   };
-  r.readAsText(f);
+  reader.readAsText(file);
   input.value = '';
 }
