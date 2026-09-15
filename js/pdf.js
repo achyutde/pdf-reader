@@ -2,8 +2,8 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.2';
-import { updateProgress } from './progress.js?v=2.2.2';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.4';
+import { updateProgress } from './progress.js?v=2.2.4';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -11,6 +11,7 @@ const pdfCtx     = pdfCanvas.getContext('2d');
 const hlCtx      = hlCanvas.getContext('2d');
 export const content = document.getElementById('content');
 export const ticker  = document.getElementById('ticker');
+const wordMeasureCtx = document.createElement('canvas').getContext('2d');
 
 export async function renderPage(n) {
   const page     = await state.pdf.getPage(n);
@@ -24,7 +25,7 @@ export async function renderPage(n) {
   await page.render({ canvasContext: pdfCtx, viewport: state.viewport }).promise;
 
   const tc = await page.getTextContent();
-  const { sentences, sentRects } = parseSentences(tc.items, state.viewport);
+  const { sentences, sentRects } = parseSentences(tc.items, tc.styles, state.viewport);
   state.sentences = sentences;
   state.sentRects = sentRects;
 
@@ -43,30 +44,37 @@ export async function renderPage(n) {
 
 // Keep sentence-level speech, but retain a character range and rectangle for
 // each word so taps and the moving three-word highlight are precise.
-function parseSentences(items, vp) {
+function parseSentences(items, styles, vp) {
   const lines = orderIntoVisualLines(items, vp);
   let txt = '';
   const map = [];
 
-  // PDF content streams are not guaranteed to follow visual reading order.
-  // Build the speech stream from page geometry instead: top-to-bottom lines,
-  // then left-to-right items. Wrapped prose lines are joined below.
+  // Keep each word's text and rectangle together from the beginning. The old
+  // parser rebuilt word rectangles later from average character widths, which
+  // could attach text from one visual region to a different highlight.
   lines.forEach((line, lineIndex) => {
-    line.items.forEach(({ item, index }) => {
+    const visualWords = line.items
+      .flatMap(entry => wordsFromTextItem(entry, styles))
+      .sort((a, b) => a.rect.x - b.rect.x);
+
+    visualWords.forEach(word => {
+      if (txt && !/\s$/.test(txt)) txt += ' ';
       const s = txt.length;
-      txt += item.str + ' ';
-      map.push({ s, e: s + item.str.length, i: index });
+      txt += word.text;
+      map.push({ s, e: txt.length, text: word.text, rect: word.rect });
     });
 
     const nextLine = lines[lineIndex + 1];
+    if (!nextLine) return;
     const currentIsTable = isTableLikeLine(line);
     const nextIsTable = isTableLikeLine(nextLine);
     const tableContinuation =
-      currentIsTable && nextLine && isContinuationOfTableRow(line, nextLine);
+      currentIsTable && isContinuationOfTableRow(line, nextLine);
     const tableBoundary =
-      nextIsTable || (currentIsTable && nextLine && !tableContinuation);
-    const blockBoundary = nextLine &&
-      (hasLargeVerticalGap(line, nextLine) || hasStrongStyleChange(line, nextLine));
+      nextIsTable || (currentIsTable && !tableContinuation);
+    const blockBoundary =
+      hasLargeVerticalGap(line, nextLine) || hasStrongStyleChange(line, nextLine);
+
     // Wrapped prose continues with a space. Tables and visibly separated
     // blocks keep a newline so their rows/headings remain independent.
     txt += tableBoundary || blockBoundary ? '\n' : ' ';
@@ -84,23 +92,55 @@ function parseSentences(items, vp) {
     const leading = raw.indexOf(text);
     const a = cur + leading;
     const b = a + text.length;
-    const hits = map.filter(m => m.e > a && m.s < b);
-    const words = [];
-    for (const match of text.matchAll(/\S+/g)) {
-      const start = match.index;
-      const end = start + match[0].length;
-      words.push({
-        text: match[0],
-        start,
-        end,
-        rect: rangeRect(a + start, a + end, map, items, vp),
-      });
-    }
+    const hits = map.filter(word => word.e > a && word.s < b);
+    const words = hits.map(word => ({
+      text: word.text,
+      start: Math.max(0, word.s - a),
+      end: Math.min(text.length, word.e - a),
+      rect: word.rect,
+    }));
     sentences.push({ text, words });
-    sentRects.push(unionRects(hits.map(m => itemRect(items[m.i], vp))));
+    sentRects.push(unionRects(words.map(word => word.rect)));
     cur += raw.length;
   });
   return { sentences, sentRects };
+}
+
+function wordsFromTextItem(entry, styles) {
+  const { item, rect } = entry;
+  const source = item.str || '';
+  const matches = [...source.matchAll(/\S+/g)];
+  if (!matches.length) return [];
+
+  const family = styles?.[item.fontName]?.fontFamily || 'sans-serif';
+  if (wordMeasureCtx) wordMeasureCtx.font = `100px ${family}`;
+  const totalMeasured = wordMeasureCtx?.measureText(source).width || 0;
+  const sourceLength = Math.max(1, source.length);
+
+  const ratioAt = index => {
+    if (!totalMeasured) return index / sourceLength;
+    return wordMeasureCtx.measureText(source.slice(0, index)).width / totalMeasured;
+  };
+
+  return matches.map(match => {
+    const start = match.index;
+    const end = start + match[0].length;
+    const startRatio = ratioAt(start);
+    const endRatio = ratioAt(end);
+    const rtl = item.dir === 'rtl';
+    const leftRatio = rtl ? 1 - endRatio : startRatio;
+    const rightRatio = rtl ? 1 - startRatio : endRatio;
+
+    return {
+      text: match[0],
+      rect: {
+        x: rect.x + rect.w * leftRatio,
+        y: rect.y,
+        w: Math.max(2, rect.w * (rightRatio - leftRatio)),
+        h: rect.h,
+      },
+    };
+  });
 }
 
 function isTableLikeLine(line) {
@@ -167,24 +207,6 @@ function orderIntoVisualLines(items, vp) {
   return lines;
 }
 
-function rangeRect(start, end, map, items, vp) {
-  const rects = [];
-  map.filter(m => m.e > start && m.s < end).forEach(m => {
-    const item = items[m.i];
-    const base = itemRect(item, vp);
-    const len = Math.max(1, item.str.length);
-    const from = Math.max(0, start - m.s);
-    const to = Math.min(len, end - m.s);
-    rects.push({
-      x: base.x + base.w * (from / len),
-      y: base.y,
-      w: Math.max(2, base.w * ((to - from) / len)),
-      h: base.h,
-    });
-  });
-  return unionRects(rects);
-}
-
 function unionRects(rects) {
   if (!rects.length) return null;
   return {
@@ -247,16 +269,30 @@ export function drawHL(si, wi = state.curWord, wordCount = HIGHLIGHT_WORDS) {
 }
 
 export function findWordAtPoint(cx, cy) {
+  const candidates = [];
+  const slop = 8;
+
   for (let si = 0; si < state.sentences.length; si++) {
     const words = state.sentences[si].words || [];
     for (let wi = 0; wi < words.length; wi++) {
       const r = words[wi].rect;
       if (!r) continue;
-      if (cx >= r.x - 6 && cx <= r.x + r.w + 6 &&
-          cy >= r.y - 6 && cy <= r.y + r.h + 6) return { si, wi };
+      const dx = cx < r.x ? r.x - cx : cx > r.x + r.w ? cx - (r.x + r.w) : 0;
+      const dy = cy < r.y ? r.y - cy : cy > r.y + r.h ? cy - (r.y + r.h) : 0;
+      if (dx > slop || dy > slop) continue;
+
+      // Several padded word rectangles can overlap on small screens. Select
+      // the closest visual word instead of whichever appears first in text.
+      const centerX = r.x + r.w / 2;
+      const centerY = r.y + r.h / 2;
+      const score = dx * dx + dy * dy +
+        ((cx - centerX) ** 2 + (cy - centerY) ** 2) * 0.001;
+      candidates.push({ si, wi, score });
     }
   }
-  return null;
+
+  candidates.sort((a, b) => a.score - b.score);
+  return candidates[0] || null;
 }
 
 export function showTicker(text) {
