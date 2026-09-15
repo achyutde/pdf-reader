@@ -2,22 +2,22 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js?v=2.3.0';
-import { startProgressScan }                              from './progress.js?v=2.3.0';
+import { state }                                          from './state.js?v=2.3.1';
+import { startProgressScan }                              from './progress.js?v=2.3.1';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.0';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.1';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.3.0';
-import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.3.0';
+         startFrom, speakAt }                             from './speech.js?v=2.3.1';
+import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.3.1';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.0';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.1';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js?v=2.3.0';
+         updateReturnBtn }                                from './ui.js?v=2.3.1';
 import { initAnnotations, toggleAnnotationPanel,
-         resetAnnotationUI }                              from './annotations.js?v=2.3.0';
+         resetAnnotationUI }                              from './annotations.js?v=2.3.1';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -300,9 +300,9 @@ document.getElementById('bm-bg').addEventListener('click',
 document.getElementById('bm-x').addEventListener('click', closeBM);
 document.getElementById('bm-import-input').addEventListener('change',
   function() { importBMs(this); });
-document.querySelector('.bm-io-btn[title="Import bookmarks"]').addEventListener('click',
+document.getElementById('bm-import-btn').addEventListener('click',
   () => document.getElementById('bm-import-input').click());
-document.querySelector('.bm-io-btn[title="Export bookmarks"]').addEventListener('click',
+document.getElementById('bm-export-btn').addEventListener('click',
   exportBMs);
 
 // Tap popup buttons
