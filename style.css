@@ -170,6 +170,26 @@ body.fit-width #content { padding-left: 0; padding-right: 0; }
   margin-top: 8px;
 }
 
+/* Hidden PDF.js text layer used only for exact word geometry. */
+.text-geometry-layer {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  line-height: 1;
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  transform-origin: 0 0;
+}
+.text-geometry-layer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  transform-origin: 0 0;
+}
+
 /* ═══ SENTENCE TICKER ═══ */
 #ticker {
   position: fixed;
