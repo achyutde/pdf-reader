@@ -2,8 +2,9 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.2';
-import { updateProgress } from './progress.js?v=2.2.2';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.0';
+import { updateProgress } from './progress.js?v=2.3.0';
+import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.0';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -20,6 +21,7 @@ export async function renderPage(n) {
   pdfCanvas.height = state.viewport.height;
   hlCanvas.width   = state.viewport.width;
   hlCanvas.height  = state.viewport.height;
+  syncAnnotationCanvas(state.viewport.width, state.viewport.height);
 
   await page.render({ canvasContext: pdfCtx, viewport: state.viewport }).promise;
 
@@ -29,6 +31,7 @@ export async function renderPage(n) {
   state.sentRects = sentRects;
 
   state.curPage = n;
+  renderAnnotations(n);
   const pageSelect = document.getElementById('pg-select');
   if (pageSelect) pageSelect.value = n;
   document.getElementById('prev-pg').disabled    = n <= 1;
@@ -265,7 +268,7 @@ export function showTicker(text) {
 }
 
 export function enableControls() {
-  ['playb', 'prev-pg', 'next-pg', 'prev-sent', 'next-sent', 'saveb', 'view-btn']
+  ['playb', 'prev-pg', 'next-pg', 'prev-sent', 'next-sent', 'saveb', 'view-btn', 'annotate-btn']
     .forEach(id => { document.getElementById(id).disabled = false; });
 }
 
