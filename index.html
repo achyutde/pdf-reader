@@ -11,7 +11,7 @@
 
 <!-- Top Bar -->
 <div id="topbar">
-  <h1>📖 PDF Reader <span id="app-version">v2.3.0</span></h1>
+  <h1>📖 PDF Reader <span id="app-version">v2.3.1</span></h1>
   <button class="top-btn">Open PDF</button>
   <button class="top-btn sec" id="bm-btn"    disabled>🔖 Bookmarks</button>
   <button class="top-btn sec" id="saveb"     disabled>🔖 Save</button>
@@ -135,8 +135,8 @@
   <div id="bm-sheet">
     <div id="bm-head">
       <h2>🔖 Bookmarks</h2>
-      <button class="bm-io-btn" title="Import bookmarks and annotations">⬆ Import</button>
-      <button class="bm-io-btn" title="Export bookmarks and annotations">⬇ Export</button>
+      <button class="bm-io-btn" id="bm-import-btn" title="Import bookmarks and annotations">⬆ Import</button>
+      <button class="bm-io-btn" id="bm-export-btn" title="Export bookmarks and annotations">⬇ Export</button>
       <input type="file" id="bm-import-input" accept="application/json" style="display:none" />
       <button id="bm-x">✕</button>
     </div>
@@ -147,6 +147,6 @@
 <!-- Toast -->
 <div id="toast"></div>
 
-<script type="module" src="js/main.js?v=2.3.0"></script>
+<script type="module" src="js/main.js?v=2.3.1"></script>
 </body>
 </html>
