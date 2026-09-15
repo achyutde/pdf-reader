@@ -2,8 +2,8 @@
 // Text-to-speech engine: play, pause, resume, stop
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.2.2';
-import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.2.2';
+import { state } from './state.js?v=2.3.0';
+import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.3.0';
 
 const playb   = document.getElementById('playb');
 const fabPlay = document.getElementById('fab-play');
@@ -199,7 +199,8 @@ export function updateBtn() {
 
 export function setSpeed(v) {
   state.rate = parseFloat(v);
-  document.getElementById('speed-val').textContent = state.rate.toFixed(1) + '×';
+  const speedSelect = document.getElementById('speed-select');
+  if (speedSelect) speedSelect.value = String(state.rate);
   if (state.mode === 'speaking') {
     const si = state.curSent;
     const wi = state.curWord;
