@@ -2,8 +2,8 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.4';
-import { updateProgress } from './progress.js?v=2.2.4';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.5';
+import { updateProgress } from './progress.js?v=2.2.5';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -11,7 +11,6 @@ const pdfCtx     = pdfCanvas.getContext('2d');
 const hlCtx      = hlCanvas.getContext('2d');
 export const content = document.getElementById('content');
 export const ticker  = document.getElementById('ticker');
-const wordMeasureCtx = document.createElement('canvas').getContext('2d');
 
 export async function renderPage(n) {
   const page     = await state.pdf.getPage(n);
@@ -25,7 +24,8 @@ export async function renderPage(n) {
   await page.render({ canvasContext: pdfCtx, viewport: state.viewport }).promise;
 
   const tc = await page.getTextContent();
-  const { sentences, sentRects } = parseSentences(tc.items, tc.styles, state.viewport);
+  const wordGeometry = await buildWordGeometry(tc, state.viewport);
+  const { sentences, sentRects } = parseSentences(tc.items, state.viewport, wordGeometry);
   state.sentences = sentences;
   state.sentRects = sentRects;
 
@@ -44,17 +44,80 @@ export async function renderPage(n) {
 
 // Keep sentence-level speech, but retain a character range and rectangle for
 // each word so taps and the moving three-word highlight are precise.
-function parseSentences(items, styles, vp) {
-  const lines = orderIntoVisualLines(items, vp);
+async function buildWordGeometry(textContent, viewport) {
+  if (typeof pdfjsLib.renderTextLayer !== 'function') {
+    throw new Error('This PDF.js build does not provide text-layer rendering.');
+  }
+
+  const layer = document.createElement('div');
+  layer.className = 'text-geometry-layer';
+  layer.style.width = `${viewport.width}px`;
+  layer.style.height = `${viewport.height}px`;
+  document.body.appendChild(layer);
+
+  try {
+    const textDivs = [];
+    const task = pdfjsLib.renderTextLayer({
+      textContentSource: textContent,
+      container: layer,
+      viewport,
+      textDivs,
+    });
+    await (task?.promise || task);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
+    const layerRect = layer.getBoundingClientRect();
+    const geometry = new Map();
+
+    textContent.items.forEach((item, itemIndex) => {
+      const source = item.str || '';
+      const span = textDivs[itemIndex];
+      if (!source.trim() || !span || span.textContent !== source) return;
+
+      const walker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
+      const textNode = walker.nextNode();
+      if (!textNode || textNode.data.length < source.length) return;
+
+      const words = [];
+      for (const match of source.matchAll(/\S+/g)) {
+        const range = document.createRange();
+        range.setStart(textNode, match.index);
+        range.setEnd(textNode, match.index + match[0].length);
+        const clientRects = [...range.getClientRects()];
+        range.detach?.();
+        if (!clientRects.length) continue;
+
+        const rect = unionRects(clientRects.map(clientRect => ({
+          x: clientRect.left - layerRect.left,
+          y: clientRect.top - layerRect.top,
+          w: clientRect.width,
+          h: clientRect.height,
+        })));
+        if (!rect || rect.w < 0.5 || rect.h < 0.5) continue;
+        if (rect.x + rect.w < 0 || rect.y + rect.h < 0 ||
+            rect.x > viewport.width || rect.y > viewport.height) continue;
+
+        words.push({ text: match[0], rect });
+      }
+      if (words.length) geometry.set(itemIndex, words);
+    });
+    return geometry;
+  } finally {
+    layer.remove();
+  }
+}
+
+// Keep sentence-level speech, but create text and geometry from PDF.js's own
+// positioned text layer. This prevents a word in one visual region from being
+// associated with text extracted from another region.
+function parseSentences(items, vp, wordGeometry) {
+  const lines = orderIntoVisualLines(items, vp, wordGeometry);
   let txt = '';
   const map = [];
 
-  // Keep each word's text and rectangle together from the beginning. The old
-  // parser rebuilt word rectangles later from average character widths, which
-  // could attach text from one visual region to a different highlight.
   lines.forEach((line, lineIndex) => {
     const visualWords = line.items
-      .flatMap(entry => wordsFromTextItem(entry, styles))
+      .flatMap(entry => entry.words)
       .sort((a, b) => a.rect.x - b.rect.x);
 
     visualWords.forEach(word => {
@@ -74,9 +137,6 @@ function parseSentences(items, styles, vp) {
       nextIsTable || (currentIsTable && !tableContinuation);
     const blockBoundary =
       hasLargeVerticalGap(line, nextLine) || hasStrongStyleChange(line, nextLine);
-
-    // Wrapped prose continues with a space. Tables and visibly separated
-    // blocks keep a newline so their rows/headings remain independent.
     txt += tableBoundary || blockBoundary ? '\n' : ' ';
   });
 
@@ -99,48 +159,13 @@ function parseSentences(items, styles, vp) {
       end: Math.min(text.length, word.e - a),
       rect: word.rect,
     }));
-    sentences.push({ text, words });
-    sentRects.push(unionRects(words.map(word => word.rect)));
+    if (words.length) {
+      sentences.push({ text, words });
+      sentRects.push(unionRects(words.map(word => word.rect)));
+    }
     cur += raw.length;
   });
   return { sentences, sentRects };
-}
-
-function wordsFromTextItem(entry, styles) {
-  const { item, rect } = entry;
-  const source = item.str || '';
-  const matches = [...source.matchAll(/\S+/g)];
-  if (!matches.length) return [];
-
-  const family = styles?.[item.fontName]?.fontFamily || 'sans-serif';
-  if (wordMeasureCtx) wordMeasureCtx.font = `100px ${family}`;
-  const totalMeasured = wordMeasureCtx?.measureText(source).width || 0;
-  const sourceLength = Math.max(1, source.length);
-
-  const ratioAt = index => {
-    if (!totalMeasured) return index / sourceLength;
-    return wordMeasureCtx.measureText(source.slice(0, index)).width / totalMeasured;
-  };
-
-  return matches.map(match => {
-    const start = match.index;
-    const end = start + match[0].length;
-    const startRatio = ratioAt(start);
-    const endRatio = ratioAt(end);
-    const rtl = item.dir === 'rtl';
-    const leftRatio = rtl ? 1 - endRatio : startRatio;
-    const rightRatio = rtl ? 1 - startRatio : endRatio;
-
-    return {
-      text: match[0],
-      rect: {
-        x: rect.x + rect.w * leftRatio,
-        y: rect.y,
-        w: Math.max(2, rect.w * (rightRatio - leftRatio)),
-        h: rect.h,
-      },
-    };
-  });
 }
 
 function isTableLikeLine(line) {
@@ -178,11 +203,15 @@ function hasLargeVerticalGap(line, nextLine) {
   return nextLine.centerY - line.centerY > Math.max(lineHeight, nextHeight) * 1.55;
 }
 
-function orderIntoVisualLines(items, vp) {
+function orderIntoVisualLines(items, vp, wordGeometry) {
   const positioned = items
-    .map((item, index) => ({ item, index, rect: itemRect(item, vp) }))
-    .filter(({ item, rect }) =>
-      item.str?.trim() &&
+    .map((item, index) => {
+      const words = wordGeometry.get(index) || [];
+      const rect = unionRects(words.map(word => word.rect));
+      return { item, index, words, rect };
+    })
+    .filter(({ item, words, rect }) =>
+      item.str?.trim() && words.length && rect &&
       Number.isFinite(rect.x) && Number.isFinite(rect.y) &&
       rect.w > 0 && rect.h > 0
     )
@@ -202,7 +231,6 @@ function orderIntoVisualLines(items, vp) {
         previous.items.length;
     }
   });
-
   lines.forEach(line => line.items.sort((a, b) => a.rect.x - b.rect.x));
   return lines;
 }
@@ -232,7 +260,8 @@ export async function getPageSentences(n) {
   const page = await state.pdf.getPage(n);
   const vp   = page.getViewport({ scale: PAGE_SCALE });
   const tc   = await page.getTextContent();
-  const { sentences } = parseSentences(tc.items, vp);
+  const wordGeometry = await buildWordGeometry(tc, vp);
+  const { sentences } = parseSentences(tc.items, vp, wordGeometry);
   return sentences;
 }
 
