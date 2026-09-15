@@ -112,6 +112,8 @@ body.reading #topbar { transform: translateY(-110%); }
   align-items: center;
   padding: 20px 12px 168px;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
   transition: padding-bottom 0.28s;
 }
 body.reading #content { padding-bottom: 48px; }

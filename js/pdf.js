@@ -2,8 +2,8 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.2';
-import { updateProgress } from './progress.js?v=2.2.2';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.2.3';
+import { updateProgress } from './progress.js?v=2.2.3';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -12,7 +12,7 @@ const hlCtx      = hlCanvas.getContext('2d');
 export const content = document.getElementById('content');
 export const ticker  = document.getElementById('ticker');
 
-export async function renderPage(n) {
+export async function renderPage(n, { scrollToTop = true } = {}) {
   const page     = await state.pdf.getPage(n);
   state.viewport = page.getViewport({ scale: PAGE_SCALE });
 
@@ -37,7 +37,7 @@ export async function renderPage(n) {
   document.getElementById('edge-next').disabled  = n >= state.numPages;
 
   clearHL();
-  content.scrollTo({ top: 0, behavior: 'smooth' });
+  if (scrollToTop) content.scrollTo({ top: 0, behavior: 'smooth' });
   updateProgress();
 }
 
@@ -218,7 +218,7 @@ export function clearHL() {
   hlCtx.clearRect(0, 0, hlCanvas.width, hlCanvas.height);
 }
 
-export function drawHL(si, wi = state.curWord, wordCount = HIGHLIGHT_WORDS) {
+export function drawHL(si, wi = state.curWord, wordCount = HIGHLIGHT_WORDS, scrollBehavior = 'smooth') {
   clearHL();
   if (state.ttsPage && state.ttsPage !== state.curPage) return;
   const words = state.sentences[si]?.words || [];
@@ -243,7 +243,7 @@ export function drawHL(si, wi = state.curWord, wordCount = HIGHLIGHT_WORDS) {
   const wordTop = hlRect.top + first.y * scale;
   const cRect = content.getBoundingClientRect();
   const target = content.scrollTop + (wordTop - cRect.top) - content.clientHeight * 0.38;
-  content.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+  content.scrollTo({ top: Math.max(0, target), behavior: scrollBehavior });
 }
 
 export function findWordAtPoint(cx, cy) {
