@@ -2,20 +2,20 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js?v=2.2.4';
-import { startProgressScan }                              from './progress.js?v=2.2.4';
+import { state }                                          from './state.js?v=2.2.5';
+import { startProgressScan }                              from './progress.js?v=2.2.5';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.2.4';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.2.5';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.2.4';
-import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.2.4';
+         startFrom, speakAt }                             from './speech.js?v=2.2.5';
+import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.2.5';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.2.4';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.2.5';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js?v=2.2.4';
+         updateReturnBtn }                                from './ui.js?v=2.2.5';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
