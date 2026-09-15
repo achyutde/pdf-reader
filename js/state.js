@@ -31,4 +31,5 @@ export const state = {
   scannedPages:   0,
   progressScanId: 0,
   readingFinished: false,
+  annotationTool: 'move',
 };

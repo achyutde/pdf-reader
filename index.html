@@ -11,10 +11,11 @@
 
 <!-- Top Bar -->
 <div id="topbar">
-  <h1>📖 PDF Reader <span id="app-version">v2.2.2</span></h1>
+  <h1>📖 PDF Reader <span id="app-version">v2.3.0</span></h1>
   <button class="top-btn">Open PDF</button>
   <button class="top-btn sec" id="bm-btn"    disabled>🔖 Bookmarks</button>
   <button class="top-btn sec" id="saveb"     disabled>🔖 Save</button>
+  <button class="top-btn sec" id="annotate-btn" disabled>✏️ Annotate</button>
   <button class="top-btn sec" id="view-btn"  disabled>↔ Fit Width</button>
   <button class="top-btn sec" id="focus-btn" disabled>⛶ Focus</button>
   <input type="file" id="file-input" accept="application/pdf" />
@@ -69,10 +70,21 @@
   <div id="canvas-wrap">
     <div id="canvas-container">
       <canvas id="pdf-canvas"></canvas>
+      <canvas id="annotation-canvas"></canvas>
       <canvas id="hl-canvas"></canvas>
     </div>
     <div id="tap-hint">👆 Tap a word to read · Swipe horizontally to change page</div>
   </div>
+</div>
+
+<!-- Annotation tools -->
+<div id="annotation-toolbar" role="toolbar" aria-label="PDF annotation tools" aria-hidden="true">
+  <button class="ann-tool active" data-tool="move" title="Move and scroll">↕ Move</button>
+  <button class="ann-tool" data-tool="highlight" title="Yellow highlighter">🖍 Highlight</button>
+  <button class="ann-tool" data-tool="pen" title="Red pen">✏ Pen</button>
+  <button class="ann-tool" data-tool="eraser" title="Erase marks">⌫ Erase</button>
+  <button class="ann-action" id="ann-undo" title="Undo annotation">↶ Undo</button>
+  <button class="ann-action danger" id="ann-clear" title="Clear annotations on this page">Clear page</button>
 </div>
 
 <!-- Sentence ticker -->
@@ -98,8 +110,20 @@
     <button class="cb" id="next-pg"   disabled>Page ▶</button>
   </div>
   <div class="ctrl-row">
-    <span id="speed-lbl">Speed: <strong id="speed-val">1.0×</strong></span>
-    <input type="range" id="speed-range" min="0.5" max="4" step="0.1" value="1" />
+    <label id="speed-lbl" for="speed-select">Speed</label>
+    <select id="speed-select" aria-label="Reading speed">
+      <option value="0.5">0.5×</option>
+      <option value="0.75">0.75×</option>
+      <option value="1" selected>1.0×</option>
+      <option value="1.25">1.25×</option>
+      <option value="1.5">1.5×</option>
+      <option value="1.75">1.75×</option>
+      <option value="2">2.0×</option>
+      <option value="2.5">2.5×</option>
+      <option value="3">3.0×</option>
+      <option value="3.5">3.5×</option>
+      <option value="4">4.0×</option>
+    </select>
     <select id="voice-sel">
       <option value="">Default Voice</option>
     </select>
@@ -111,8 +135,8 @@
   <div id="bm-sheet">
     <div id="bm-head">
       <h2>🔖 Bookmarks</h2>
-      <button class="bm-io-btn" title="Import bookmarks">⬆ Import</button>
-      <button class="bm-io-btn" title="Export bookmarks">⬇ Export</button>
+      <button class="bm-io-btn" title="Import bookmarks and annotations">⬆ Import</button>
+      <button class="bm-io-btn" title="Export bookmarks and annotations">⬇ Export</button>
       <input type="file" id="bm-import-input" accept="application/json" style="display:none" />
       <button id="bm-x">✕</button>
     </div>
@@ -123,6 +147,6 @@
 <!-- Toast -->
 <div id="toast"></div>
 
-<script type="module" src="js/main.js?v=2.2.2"></script>
+<script type="module" src="js/main.js?v=2.3.0"></script>
 </body>
 </html>

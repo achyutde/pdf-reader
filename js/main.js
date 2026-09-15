@@ -2,20 +2,22 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js?v=2.2.2';
-import { startProgressScan }                              from './progress.js?v=2.2.2';
+import { state }                                          from './state.js?v=2.3.0';
+import { startProgressScan }                              from './progress.js?v=2.3.0';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.2.2';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.0';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.2.2';
-import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.2.2';
+         startFrom, speakAt }                             from './speech.js?v=2.3.0';
+import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.3.0';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.2.2';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.0';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js?v=2.2.2';
+         updateReturnBtn }                                from './ui.js?v=2.3.0';
+import { initAnnotations, toggleAnnotationPanel,
+         resetAnnotationUI }                              from './annotations.js?v=2.3.0';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -23,11 +25,13 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 // Inject toast, savePosition, updateReturnBtn into speech.js (avoids circular import)
 injectDeps(toast, savePosition, updateReturnBtn);
+initAnnotations(toast);
 
 // ─── App init ─────────────────────────────────────────
 async function initPDF(data) {
   hardStop();
   dismissResume();
+  resetAnnotationUI();
 
   state.pdf          = await pdfjsLib.getDocument({ data }).promise;
   state.numPages     = state.pdf.numPages;
@@ -239,8 +243,15 @@ fileInput.addEventListener('change', e => {
 // Top bar
 document.getElementById('bm-btn').addEventListener('click', openBM);
 document.getElementById('saveb').addEventListener('click', addBM);
+document.getElementById('annotate-btn').addEventListener('click', () => {
+  if (state.mode === 'speaking') togglePlay();
+  toggleAnnotationPanel();
+});
 document.getElementById('view-btn').addEventListener('click', toggleView);
-document.getElementById('focus-btn').addEventListener('click', enterReading);
+document.getElementById('focus-btn').addEventListener('click', () => {
+  resetAnnotationUI();
+  enterReading();
+});
 
 // Page dropdown remains available alongside swipe navigation.
 document.getElementById('pg-select').addEventListener('change', function() {
@@ -278,7 +289,7 @@ document.getElementById('prev-sent').addEventListener('click', () => moveSent(-1
 document.getElementById('playb').addEventListener('click',     togglePlay);
 document.getElementById('next-sent').addEventListener('click', () => moveSent(1));
 document.getElementById('next-pg').addEventListener('click',   () => changePage(1));
-document.getElementById('speed-range').addEventListener('input',
+document.getElementById('speed-select').addEventListener('change',
   function() { setSpeed(this.value); });
 document.getElementById('voice-sel').addEventListener('change',
   function() { setVoice(this.value); });
@@ -313,12 +324,12 @@ const hlCanvas = document.getElementById('hl-canvas');
 let pointerStart = null;
 
 hlCanvas.addEventListener('pointerdown', e => {
-  if (!e.isPrimary) return;
+  if (state.annotationTool !== 'move' || !e.isPrimary) return;
   pointerStart = { id: e.pointerId, x: e.clientX, y: e.clientY };
 });
 
 hlCanvas.addEventListener('pointerup', e => {
-  if (!pointerStart || pointerStart.id !== e.pointerId) return;
+  if (state.annotationTool !== 'move' || !pointerStart || pointerStart.id !== e.pointerId) return;
   const dx = e.clientX - pointerStart.x;
   const dy = e.clientY - pointerStart.y;
   pointerStart = null;
