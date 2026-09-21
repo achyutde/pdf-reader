@@ -3,11 +3,11 @@
 // export to JSON file, import from JSON file
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.1';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.1';
-import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.2';
-import { toast } from './ui.js?v=2.3.1';
-import { renderAnnotations } from './annotations.js?v=2.3.1';
+import { state } from './state.js?v=2.3.3';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.3';
+import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.3';
+import { toast } from './ui.js?v=2.3.3';
+import { renderAnnotations } from './annotations.js?v=2.3.3';
 
 // ─── Storage helpers ──────────────────────────────────
 const bmKey       = ()  => 'bm:' + state.fileName;
@@ -41,7 +41,7 @@ export function openBM() {
   items.innerHTML = '';
 
   if (!bms.length) {
-    items.innerHTML = '<div id="bm-empty">No bookmarks yet.<br/>Tap 🔖 Save while reading to add one.</div>';
+    items.innerHTML = '<div id="bm-empty">No bookmarks yet.<br/>Tap Add Bookmark while reading to add one.</div>';
   } else {
     [...bms].reverse().forEach((bm, ri) => {
       const realIdx = bms.length - 1 - ri;
@@ -143,11 +143,7 @@ export async function exportBMs() {
   const file = new File([json], 'pdf-reader-data.json', { type: 'application/json' });
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({
-        title: 'PDF Reader backup',
-        text: 'Bookmarks, annotations, and reader settings',
-        files: [file],
-      });
+      await navigator.share({ files: [file] });
       toast('Reader data exported ✓');
       return;
     } catch (error) {

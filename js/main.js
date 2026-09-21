@@ -2,22 +2,22 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js?v=2.3.1';
-import { startProgressScan }                              from './progress.js?v=2.3.1';
+import { state }                                          from './state.js?v=2.3.3';
+import { startProgressScan }                              from './progress.js?v=2.3.3';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.1';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.3';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.3.2';
-import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.3.1';
+         startFrom, speakAt }                             from './speech.js?v=2.3.3';
+import { changePage, jumpTo }                   from './navigation.js?v=2.3.3';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.2';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.3';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js?v=2.3.1';
+         updateReturnBtn }                                from './ui.js?v=2.3.3';
 import { initAnnotations, toggleAnnotationPanel,
-         resetAnnotationUI }                              from './annotations.js?v=2.3.1';
+         resetAnnotationUI }                              from './annotations.js?v=2.3.3';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -232,8 +232,29 @@ function dismissTapMenu() {
 // ─── Event wiring ─────────────────────────────────────
 // File input
 const fileInput = document.getElementById('file-input');
-document.querySelector('.top-btn:not(.sec)').addEventListener('click',
-  () => fileInput.click());
+const menuToggle = document.getElementById('menu-toggle');
+const appMenu = document.getElementById('app-menu');
+
+function setAppMenu(open) {
+  appMenu.classList.toggle('on', open);
+  appMenu.setAttribute('aria-hidden', open ? 'false' : 'true');
+  menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  menuToggle.setAttribute('aria-label', open ? 'Close reader menu' : 'Open reader menu');
+}
+
+menuToggle.addEventListener('click', event => {
+  event.stopPropagation();
+  setAppMenu(!appMenu.classList.contains('on'));
+});
+document.getElementById('open-pdf-btn').addEventListener('click', () => {
+  setAppMenu(false);
+  fileInput.click();
+});
+document.addEventListener('click', event => {
+  if (appMenu.classList.contains('on') &&
+      !appMenu.contains(event.target) &&
+      event.target !== menuToggle) setAppMenu(false);
+});
 fileInput.addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
@@ -245,14 +266,22 @@ fileInput.addEventListener('change', e => {
 });
 
 // Top bar
-document.getElementById('bm-btn').addEventListener('click', openBM);
+document.getElementById('bm-btn').addEventListener('click', () => {
+  setAppMenu(false);
+  openBM();
+});
 document.getElementById('saveb').addEventListener('click', addBM);
 document.getElementById('annotate-btn').addEventListener('click', () => {
+  setAppMenu(false);
   if (state.mode === 'speaking') togglePlay();
   toggleAnnotationPanel();
 });
-document.getElementById('view-btn').addEventListener('click', toggleView);
+document.getElementById('view-btn').addEventListener('click', () => {
+  toggleView();
+  setAppMenu(false);
+});
 document.getElementById('focus-btn').addEventListener('click', () => {
+  setAppMenu(false);
   resetAnnotationUI();
   enterReading();
 });
@@ -288,15 +317,13 @@ document.getElementById('edge-prev').addEventListener('click', () => changePage(
 document.getElementById('edge-next').addEventListener('click', () => changePage(1));
 
 // Controls
-document.getElementById('prev-pg').addEventListener('click',   () => changePage(-1));
-document.getElementById('prev-sent').addEventListener('click', () => moveSent(-1));
-document.getElementById('playb').addEventListener('click',     togglePlay);
-document.getElementById('next-sent').addEventListener('click', () => moveSent(1));
-document.getElementById('next-pg').addEventListener('click',   () => changePage(1));
+document.getElementById('prev-pg').addEventListener('click', () => changePage(-1));
+document.getElementById('playb').addEventListener('click', togglePlay);
+document.getElementById('next-pg').addEventListener('click', () => changePage(1));
 document.getElementById('speed-select').addEventListener('change',
-  function() { setSpeed(this.value); });
+  function() { setSpeed(this.value); setAppMenu(false); });
 document.getElementById('voice-sel').addEventListener('change',
-  function() { setVoice(this.value); });
+  function() { setVoice(this.value); setAppMenu(false); });
 
 // Bookmarks sheet
 document.getElementById('bm-bg').addEventListener('click',
