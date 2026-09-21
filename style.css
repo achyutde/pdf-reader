@@ -10,6 +10,16 @@ body {
   overflow: hidden;
 }
 
+button,
+select,
+input,
+label,
+#app-menu,
+#controls,
+#page-scrubber {
+  touch-action: manipulation;
+}
+
 /* ═══ COLLAPSIBLE APP MENU ═══ */
 :root { --bottom-bar-height: 70px; }
 
