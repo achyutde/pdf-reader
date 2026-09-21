@@ -2,12 +2,12 @@
 // Page and sentence navigation
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.4';
+import { state } from './state.js?v=2.3.5';
 import { renderPage, clearHL, drawHL, showTicker,
-         savePosition, getPageSentences }           from './pdf.js?v=2.3.4';
+         savePosition, getPageSentences }           from './pdf.js?v=2.3.5';
 import { cancelTTS, speakAt, hardStop,
-         updateBtn, startFrom }                     from './speech.js?v=2.3.4';
-import { updateReturnBtn }                           from './ui.js?v=2.3.4';
+         updateBtn, startFrom }                     from './speech.js?v=2.3.5';
+import { updateReturnBtn }                           from './ui.js?v=2.3.5';
 
 // ─── Sentence navigation ──────────────────────────────
 // moveSent always navigates the TTS position (not the display page).
@@ -147,11 +147,13 @@ export async function changePage(delta) {
 export function jumpTo(pageNumber) {
   let n = Number.isFinite(pageNumber)
     ? pageNumber
-    : parseInt(document.getElementById('pg-select')?.value, 10);
+    : parseInt(document.getElementById('page-slider')?.value, 10);
   if (isNaN(n)) return;
   n = Math.max(1, Math.min(n, state.numPages));
-  const select = document.getElementById('pg-select');
-  if (select) select.value = n;
+  const slider = document.getElementById('page-slider');
+  const label = document.getElementById('page-slider-label');
+  if (slider) slider.value = n;
+  if (label) label.textContent = `Page ${n} of ${state.numPages}`;
   if (n === state.curPage) return;
   changePage(n - state.curPage);
 }

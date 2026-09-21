@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>PDF Reader</title>
-  <link rel="stylesheet" href="style.css?v=2.3.4" />
+  <link rel="stylesheet" href="style.css?v=2.3.5" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
@@ -54,6 +54,7 @@
     <label for="table-mode">Tables</label>
     <select id="table-mode">
       <option value="columns" selected>Read by columns</option>
+      <option value="rows">Read left-to-right</option>
       <option value="skip">Skip tables</option>
     </select>
   </div>
@@ -122,6 +123,13 @@
 <!-- Sentence ticker -->
 <div id="ticker"></div>
 
+<!-- Page scrubber (navigation occurs when released) -->
+<div id="page-scrubber">
+  <label id="page-slider-label" for="page-slider">Page — of —</label>
+  <input type="range" id="page-slider" min="1" max="1" value="1"
+         step="1" disabled aria-label="Go to page" />
+</div>
+
 <!-- Reading progress (stays visible in focus mode) -->
 <div id="reading-progress" role="progressbar" aria-label="PDF reading progress"
      aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
@@ -134,10 +142,10 @@
 
 <!-- Bottom toolbar -->
 <div id="controls">
-  <div id="bottom-brand" aria-label="PDF Reader version 2.3.4">
+  <div id="bottom-brand" aria-label="PDF Reader version 2.3.5">
     <span class="brand-icon">📖</span>
     <span class="brand-name">PDF Reader</span>
-    <span id="app-version">v2.3.4</span>
+    <span id="app-version">v2.3.5</span>
   </div>
 
   <div id="playback-controls">
@@ -150,13 +158,6 @@
     <button id="saveb" disabled title="Add bookmark">
       🔖 <span class="bookmark-label">Add Bookmark</span>
     </button>
-    <div id="page-jump">
-      <label for="pg-select">Page</label>
-      <select id="pg-select" aria-label="Go to page" disabled>
-        <option value="">—</option>
-      </select>
-      <span id="page-total">of —</span>
-    </div>
   </div>
 </div>
 
@@ -177,6 +178,6 @@
 <!-- Toast -->
 <div id="toast"></div>
 
-<script type="module" src="js/main.js?v=2.3.4"></script>
+<script type="module" src="js/main.js?v=2.3.5"></script>
 </body>
 </html>

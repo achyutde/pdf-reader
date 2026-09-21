@@ -2,7 +2,7 @@
 // Reading progress and approximate time remaining
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.4';
+import { state } from './state.js?v=2.3.5';
 
 const BASE_WORDS_PER_MINUTE = 180;
 const FALLBACK_WORDS_PER_PAGE = 250;
@@ -93,7 +93,7 @@ export async function startProgressScan() {
   state.scannedPages = 0;
   updateProgress();
 
-  const { getPageSentences } = await import('./pdf.js?v=2.3.4');
+  const { getPageSentences } = await import('./pdf.js?v=2.3.5');
 
   for (let pageNumber = 1; pageNumber <= state.numPages; pageNumber++) {
     if (scanId !== state.progressScanId || !state.pdf) return;

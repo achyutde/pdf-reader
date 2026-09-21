@@ -2,9 +2,9 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.4';
-import { updateProgress } from './progress.js?v=2.3.4';
-import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.4';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.5';
+import { updateProgress } from './progress.js?v=2.3.5';
+import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.5';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -32,8 +32,10 @@ export async function renderPage(n) {
 
   state.curPage = n;
   renderAnnotations(n);
-  const pageSelect = document.getElementById('pg-select');
-  if (pageSelect) pageSelect.value = n;
+  const pageSlider = document.getElementById('page-slider');
+  const pageSliderLabel = document.getElementById('page-slider-label');
+  if (pageSlider) pageSlider.value = n;
+  if (pageSliderLabel) pageSliderLabel.textContent = `Page ${n} of ${state.numPages}`;
   document.getElementById('prev-pg').disabled    = n <= 1;
   document.getElementById('next-pg').disabled    = n >= state.numPages;
   document.getElementById('edge-prev').disabled  = n <= 1;
@@ -102,10 +104,16 @@ function buildReadingStream(lines, vp) {
       const table = findTableBlock(lines, lineIndex, vp);
       // A visually table-like region is either read in verified column order
       // or omitted. It never falls back to the misleading row-by-row order.
-      if (state.tableMode === 'columns' && table.confident) {
+      if (table.confident && state.tableMode === 'columns') {
         table.columns.forEach(column => {
           column
             .sort((a, b) => a.centerY - b.centerY || a.x - b.x)
+            .forEach(cell => stream.push({ entries: cell.entries, separator: '\n' }));
+        });
+      } else if (table.confident && state.tableMode === 'rows') {
+        table.rows.forEach(row => {
+          row
+            .sort((a, b) => a.columnIndex - b.columnIndex)
             .forEach(cell => stream.push({ entries: cell.entries, separator: '\n' }));
         });
       }
@@ -188,11 +196,13 @@ function findTableBlock(lines, start, vp) {
   let confident = tableRows.length >= 2 && anchors.length >= 2 &&
     minimumGap >= Math.max(42, vp.width * 0.055);
   const columns = anchors.map(() => []);
+  const rows = [];
 
   if (confident) {
     const assignmentTolerance = Math.max(60, minimumGap * 0.48);
     for (let index = start; index <= end; index++) {
       const line = lines[index];
+      const row = [];
       for (const entries of splitLineIntoSegments(line)) {
         const x = entries[0].rect.x;
         let columnIndex = 0;
@@ -208,13 +218,16 @@ function findTableBlock(lines, start, vp) {
           confident = false;
           break;
         }
-        columns[columnIndex].push({ entries, centerY: line.centerY, x });
+        const cell = { entries, centerY: line.centerY, x, columnIndex };
+        columns[columnIndex].push(cell);
+        row.push(cell);
       }
       if (!confident) break;
+      if (row.length) rows.push(row);
     }
   }
 
-  return { end, confident, columns };
+  return { end, confident, columns, rows };
 }
 
 function hasStrongStyleChange(line, nextLine) {

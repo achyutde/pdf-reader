@@ -3,11 +3,11 @@
 // export to JSON file, import from JSON file
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.4';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.4';
-import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.4';
-import { toast } from './ui.js?v=2.3.4';
-import { renderAnnotations } from './annotations.js?v=2.3.4';
+import { state } from './state.js?v=2.3.5';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.5';
+import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.5';
+import { toast } from './ui.js?v=2.3.5';
+import { renderAnnotations } from './annotations.js?v=2.3.5';
 
 // ─── Storage helpers ──────────────────────────────────
 const bmKey       = ()  => 'bm:' + state.fileName;
@@ -116,7 +116,7 @@ export async function exportBMs() {
   }
   const json = JSON.stringify({
     format: 'pdf-reader-backup',
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     settings: {
       readingSpeed: state.rate,
@@ -237,7 +237,7 @@ export function importBMs(input) {
           String(state.readHeadersFooters));
         readingSettingsImported = true;
       }
-      if (['columns', 'skip'].includes(data?.settings?.tableMode)) {
+      if (['columns', 'rows', 'skip'].includes(data?.settings?.tableMode)) {
         state.tableMode = data.settings.tableMode;
         localStorage.setItem('reader:tableMode', state.tableMode);
         readingSettingsImported = true;

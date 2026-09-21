@@ -2,7 +2,7 @@
 // Freehand PDF annotations stored separately from the PDF
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.4';
+import { state } from './state.js?v=2.3.5';
 
 const canvas = document.getElementById('annotation-canvas');
 const inputCanvas = document.getElementById('hl-canvas');
