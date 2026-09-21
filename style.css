@@ -387,15 +387,19 @@ body.reading #controls { transform: translateY(120%); }
 #pg-select:disabled { opacity: 0.4; }
 
 @media (max-width: 720px) {
-  .bookmark-label, #page-jump label, #page-total { display: none; }
-  #saveb { width: 40px; padding-left: 0; padding-right: 0; }
-  #controls { gap: 5px; padding-left: 8px; padding-right: 8px; }
+  #page-jump label, #page-total { display: none; }
+  #controls { gap: 4px; padding-left: 7px; padding-right: 7px; }
+  #bottom-brand { gap: 2px; font-size: 11px; }
+  #playback-controls { gap: 4px; }
+  .cb.page-control { width: 34px; }
+  #playb { padding-left: 8px; padding-right: 8px; font-size: 12px; }
+  #bottom-actions { gap: 4px; }
+  #saveb { padding-left: 7px; padding-right: 7px; font-size: 11px; }
+  #pg-select { min-width: 50px; padding-left: 5px; padding-right: 17px; }
 }
 @media (max-width: 380px) {
   .brand-name { display: none; }
-  #playb { padding-left: 9px; padding-right: 9px; font-size: 12px; }
-  #playback-controls { gap: 4px; }
-  #bottom-actions { gap: 4px; }
+  #playb { padding-left: 6px; padding-right: 6px; font-size: 11px; }
 }
 
 /* ═══ EXIT FOCUS FAB (top-right) ═══ */
