@@ -263,7 +263,7 @@ function orderIntoVisualLines(items, vp) {
   return lines;
 }
 
-function rangeRect(function rangeRect(start, end, map, items, vp) {
+function rangeRect(start, end, map, items, vp) {
   const rects = [];
   map.filter(m => m.e > start && m.s < end).forEach(m => {
     const item = items[m.i];
