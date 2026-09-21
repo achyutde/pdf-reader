@@ -9,10 +9,10 @@ import { renderPage, enableControls, savePosition,
          showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.1';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.3.1';
+         startFrom, speakAt }                             from './speech.js?v=2.3.2';
 import { moveSent, changePage, jumpTo }                   from './navigation.js?v=2.3.1';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.1';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.2';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
          updateReturnBtn }                                from './ui.js?v=2.3.1';
@@ -26,6 +26,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 // Inject toast, savePosition, updateReturnBtn into speech.js (avoids circular import)
 injectDeps(toast, savePosition, updateReturnBtn);
 initAnnotations(toast);
+
+// Restore the reader-wide speed preference before a PDF is opened.
+const storedRate = localStorage.getItem('reader:speed');
+if (storedRate !== null) setSpeed(storedRate);
 
 // ─── App init ─────────────────────────────────────────
 async function initPDF(data) {

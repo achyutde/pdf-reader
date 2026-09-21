@@ -198,9 +198,14 @@ export function updateBtn() {
 }
 
 export function setSpeed(v) {
-  state.rate = parseFloat(v);
+  const rate = Number.parseFloat(v);
+  if (!Number.isFinite(rate) || rate < 0.5 || rate > 4) return false;
+
+  state.rate = rate;
+  localStorage.setItem('reader:speed', String(rate));
+
   const speedSelect = document.getElementById('speed-select');
-  if (speedSelect) speedSelect.value = String(state.rate);
+  if (speedSelect) speedSelect.value = String(rate);
   if (state.mode === 'speaking') {
     const si = state.curSent;
     const wi = state.curWord;
@@ -210,6 +215,7 @@ export function setSpeed(v) {
   } else {
     savePos();
   }
+  return true;
 }
 
 let _toast = () => {};

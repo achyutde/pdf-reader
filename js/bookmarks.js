@@ -5,7 +5,7 @@
 
 import { state } from './state.js?v=2.3.1';
 import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.1';
-import { hardStop, startFrom, updateBtn } from './speech.js?v=2.3.1';
+import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.2';
 import { toast } from './ui.js?v=2.3.1';
 import { renderAnnotations } from './annotations.js?v=2.3.1';
 
@@ -114,12 +114,13 @@ export async function exportBMs() {
     if (!key || (!key.startsWith('bm:') && !key.startsWith('ann:'))) continue;
     try { entries[key] = JSON.parse(localStorage.getItem(key)); } catch {}
   }
-  if (!Object.keys(entries).length) { toast('No bookmarks or annotations to export'); return; }
-
   const json = JSON.stringify({
     format: 'pdf-reader-backup',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
+    settings: {
+      readingSpeed: state.rate,
+    },
     entries,
   }, null, 2);
 
@@ -139,13 +140,29 @@ export async function exportBMs() {
     }
   }
 
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+  const file = new File([json], 'pdf-reader-data.json', { type: 'application/json' });
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({
+        title: 'PDF Reader backup',
+        text: 'Bookmarks, annotations, and reader settings',
+        files: [file],
+      });
+      toast('Reader data exported ✓');
+      return;
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+    }
+  }
+
+  const url = URL.createObjectURL(file);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = 'pdf-reader-data.json';
+  anchor.download = file.name;
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
   toast('Reader data exported ✓');
 }
 
@@ -211,8 +228,13 @@ export function importBMs(input) {
         if (key.startsWith('bm:')) bookmarkCount += mergeBookmarks(key, value);
         if (key.startsWith('ann:')) annotationCount += mergeAnnotations(key, value);
       });
+
+      const importedSpeed = Number.parseFloat(data?.settings?.readingSpeed);
+      const speedImported = Number.isFinite(importedSpeed) && setSpeed(importedSpeed);
+
       renderAnnotations();
-      toast(`Imported ${bookmarkCount} bookmark(s), ${annotationCount} annotation(s) ✓`);
+      const speedMessage = speedImported ? `, speed ${state.rate}×` : '';
+      toast(`Imported ${bookmarkCount} bookmark(s), ${annotationCount} annotation(s)${speedMessage} ✓`);
       openBM();
     } catch {
       toast('Invalid reader data file');
