@@ -2,22 +2,22 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js?v=2.3.3';
-import { startProgressScan }                              from './progress.js?v=2.3.3';
+import { state }                                          from './state.js?v=2.3.4';
+import { startProgressScan }                              from './progress.js?v=2.3.4';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.3';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.4';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.3.3';
-import { changePage, jumpTo }                   from './navigation.js?v=2.3.3';
+         startFrom, speakAt }                             from './speech.js?v=2.3.4';
+import { changePage, jumpTo }                   from './navigation.js?v=2.3.4';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.3';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.4';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js?v=2.3.3';
+         updateReturnBtn }                                from './ui.js?v=2.3.4';
 import { initAnnotations, toggleAnnotationPanel,
-         resetAnnotationUI }                              from './annotations.js?v=2.3.3';
+         resetAnnotationUI }                              from './annotations.js?v=2.3.4';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -30,6 +30,42 @@ initAnnotations(toast);
 // Restore the reader-wide speed preference before a PDF is opened.
 const storedRate = localStorage.getItem('reader:speed');
 if (storedRate !== null) setSpeed(storedRate);
+
+const headersFootersToggle = document.getElementById('read-headers-footers');
+const tableModeSelect = document.getElementById('table-mode');
+
+function loadReadingOrderSettings() {
+  state.readHeadersFooters = localStorage.getItem('reader:readHeadersFooters') === 'true';
+  const storedTableMode = localStorage.getItem('reader:tableMode');
+  state.tableMode = storedTableMode === 'skip' ? 'skip' : 'columns';
+  headersFootersToggle.checked = state.readHeadersFooters;
+  tableModeSelect.value = state.tableMode;
+}
+loadReadingOrderSettings();
+
+async function reprocessReadingOrder(message) {
+  if (!state.pdf) {
+    toast(message);
+    return;
+  }
+  const page = state.curPage;
+  hardStop();
+  await renderPage(page);
+  startProgressScan();
+
+  if (state.sentences.length) {
+    state.curSent = 0;
+    state.curWord = 0;
+    state.pausePage = page;
+    state.pauseSent = 0;
+    state.pauseWord = 0;
+    state.mode = 'paused';
+    drawHL(0, 0);
+    showTicker(state.sentences[0].text);
+    updateBtn();
+  }
+  toast(message + ' — page reprocessed');
+}
 
 // ─── App init ─────────────────────────────────────────
 async function initPDF(data) {
@@ -324,6 +360,26 @@ document.getElementById('speed-select').addEventListener('change',
   function() { setSpeed(this.value); setAppMenu(false); });
 document.getElementById('voice-sel').addEventListener('change',
   function() { setVoice(this.value); setAppMenu(false); });
+headersFootersToggle.addEventListener('change', function() {
+  state.readHeadersFooters = this.checked;
+  localStorage.setItem('reader:readHeadersFooters', String(this.checked));
+  setAppMenu(false);
+  reprocessReadingOrder(this.checked
+    ? 'Headers and footers enabled'
+    : 'Headers and footers skipped');
+});
+tableModeSelect.addEventListener('change', function() {
+  state.tableMode = this.value === 'skip' ? 'skip' : 'columns';
+  localStorage.setItem('reader:tableMode', state.tableMode);
+  setAppMenu(false);
+  reprocessReadingOrder(state.tableMode === 'skip'
+    ? 'Tables skipped'
+    : 'Tables read by columns');
+});
+window.addEventListener('reader-settings-imported', () => {
+  loadReadingOrderSettings();
+  reprocessReadingOrder('Imported reading settings applied');
+});
 
 // Bookmarks sheet
 document.getElementById('bm-bg').addEventListener('click',

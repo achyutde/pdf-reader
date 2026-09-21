@@ -75,7 +75,8 @@ body.reading #app-menu { display: none; }
 }
 .menu-field label { color: #8fa6c4; font-size: 12px; }
 #speed-select,
-#voice-sel {
+#voice-sel,
+#table-mode {
   width: 100%;
   min-width: 0;
   background: #0f3460;
@@ -84,6 +85,14 @@ body.reading #app-menu { display: none; }
   padding: 8px 28px 8px 9px;
   border-radius: 9px;
   font-size: 13px;
+  cursor: pointer;
+}
+.menu-check-field label { line-height: 1.25; }
+#read-headers-footers {
+  justify-self: end;
+  width: 20px;
+  height: 20px;
+  accent-color: #e94560;
   cursor: pointer;
 }
 #file-input { display: none; }

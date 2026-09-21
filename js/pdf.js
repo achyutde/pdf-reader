@@ -2,9 +2,9 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.3';
-import { updateProgress } from './progress.js?v=2.3.3';
-import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.3';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.4';
+import { updateProgress } from './progress.js?v=2.3.4';
+import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.4';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -48,31 +48,17 @@ export async function renderPage(n) {
 // each word so taps and the moving three-word highlight are precise.
 function parseSentences(items, vp) {
   const lines = orderIntoVisualLines(items, vp);
+  const stream = buildReadingStream(lines, vp);
   let txt = '';
   const map = [];
 
-  // PDF content streams are not guaranteed to follow visual reading order.
-  // Build the speech stream from page geometry instead: top-to-bottom lines,
-  // then left-to-right items. Wrapped prose lines are joined below.
-  lines.forEach((line, lineIndex) => {
-    line.items.forEach(({ item, index }) => {
+  stream.forEach(part => {
+    part.entries.forEach(({ item, index }) => {
       const s = txt.length;
       txt += item.str + ' ';
       map.push({ s, e: s + item.str.length, i: index });
     });
-
-    const nextLine = lines[lineIndex + 1];
-    const currentIsTable = isTableLikeLine(line);
-    const nextIsTable = isTableLikeLine(nextLine);
-    const tableContinuation =
-      currentIsTable && nextLine && isContinuationOfTableRow(line, nextLine);
-    const tableBoundary =
-      nextIsTable || (currentIsTable && nextLine && !tableContinuation);
-    const blockBoundary = nextLine &&
-      (hasLargeVerticalGap(line, nextLine) || hasStrongStyleChange(line, nextLine));
-    // Wrapped prose continues with a space. Tables and visibly separated
-    // blocks keep a newline so their rows/headings remain independent.
-    txt += tableBoundary || blockBoundary ? '\n' : ' ';
+    txt += part.separator;
   });
 
   const rx = /[^.!?…,:;—–\n]+(?:[.!?…,:;—–]+["']?(?=\s|$)|\n)|[^.!?…,:;—–\n]+$/g;
@@ -106,27 +92,129 @@ function parseSentences(items, vp) {
   return { sentences, sentRects };
 }
 
-function isTableLikeLine(line) {
-  if (!line || line.items.length < 2) return false;
-  for (let i = 1; i < line.items.length; i++) {
-    const previous = line.items[i - 1].rect;
-    const current = line.items[i].rect;
-    const gap = current.x - (previous.x + previous.w);
-    const threshold = Math.max(48, Math.max(previous.h, current.h) * 2);
-    if (gap >= threshold) return true;
+function buildReadingStream(lines, vp) {
+  const stream = [];
+  let lineIndex = 0;
+
+  while (lineIndex < lines.length) {
+    const line = lines[lineIndex];
+    if (isTableLikeLine(line)) {
+      const table = findTableBlock(lines, lineIndex, vp);
+      // A visually table-like region is either read in verified column order
+      // or omitted. It never falls back to the misleading row-by-row order.
+      if (state.tableMode === 'columns' && table.confident) {
+        table.columns.forEach(column => {
+          column
+            .sort((a, b) => a.centerY - b.centerY || a.x - b.x)
+            .forEach(cell => stream.push({ entries: cell.entries, separator: '\n' }));
+        });
+      }
+      lineIndex = table.end + 1;
+      continue;
+    }
+
+    const nextLine = lines[lineIndex + 1];
+    const boundary = !nextLine || isTableLikeLine(nextLine) ||
+      hasLargeVerticalGap(line, nextLine) || hasStrongStyleChange(line, nextLine);
+    stream.push({ entries: line.items, separator: boundary ? '\n' : ' ' });
+    lineIndex += 1;
   }
-  return false;
+  return stream;
 }
 
-function isContinuationOfTableRow(line, nextLine) {
-  if (isTableLikeLine(nextLine)) return false;
-  const currentLeft = Math.min(...line.items.map(entry => entry.rect.x));
-  const nextLeft = Math.min(...nextLine.items.map(entry => entry.rect.x));
-  const currentHeight = Math.max(...line.items.map(entry => entry.rect.h));
-  const nextHeight = Math.max(...nextLine.items.map(entry => entry.rect.h));
-  const closeVertically =
-    nextLine.centerY - line.centerY <= Math.max(currentHeight, nextHeight) * 1.55;
-  return closeVertically && nextLeft - currentLeft >= 80;
+function splitLineIntoSegments(line) {
+  if (!line?.items?.length) return [];
+  const heights = line.items.map(entry => entry.rect.h).sort((a, b) => a - b);
+  const medianHeight = heights[Math.floor(heights.length / 2)] || 12;
+  const gapThreshold = Math.max(44, medianHeight * 2.2);
+  const segments = [[line.items[0]]];
+
+  for (let index = 1; index < line.items.length; index++) {
+    const previous = line.items[index - 1].rect;
+    const current = line.items[index].rect;
+    const gap = current.x - (previous.x + previous.w);
+    if (gap >= gapThreshold) segments.push([]);
+    segments[segments.length - 1].push(line.items[index]);
+  }
+  return segments;
+}
+
+function isTableLikeLine(line) {
+  return splitLineIntoSegments(line).length >= 2;
+}
+
+function findTableBlock(lines, start, vp) {
+  const tableRows = [];
+  let lastTableRow = start;
+
+  for (let index = start; index < lines.length; index++) {
+    if (index > start && hasLargeVerticalGap(lines[index - 1], lines[index])) break;
+    if (isTableLikeLine(lines[index])) {
+      tableRows.push(index);
+      lastTableRow = index;
+    } else if (index - lastTableRow > 2) {
+      break;
+    }
+  }
+
+  const end = lastTableRow;
+  const tolerance = Math.max(24, vp.width * 0.025);
+  const clusters = [];
+
+  tableRows.forEach(rowIndex => {
+    splitLineIntoSegments(lines[rowIndex]).forEach(segment => {
+      const x = segment[0].rect.x;
+      let cluster = clusters.find(value => Math.abs(value.x - x) <= tolerance);
+      if (!cluster) {
+        cluster = { x, samples: [], rows: new Set() };
+        clusters.push(cluster);
+      }
+      cluster.samples.push(x);
+      cluster.rows.add(rowIndex);
+      cluster.x = cluster.samples.reduce((sum, value) => sum + value, 0) /
+        cluster.samples.length;
+    });
+  });
+
+  const minimumSupport = Math.max(2, Math.ceil(tableRows.length * 0.5));
+  const anchors = clusters
+    .filter(cluster => cluster.rows.size >= minimumSupport)
+    .map(cluster => cluster.x)
+    .sort((a, b) => a - b);
+
+  const minimumGap = anchors.length > 1
+    ? Math.min(...anchors.slice(1).map((value, index) => value - anchors[index]))
+    : 0;
+  let confident = tableRows.length >= 2 && anchors.length >= 2 &&
+    minimumGap >= Math.max(42, vp.width * 0.055);
+  const columns = anchors.map(() => []);
+
+  if (confident) {
+    const assignmentTolerance = Math.max(60, minimumGap * 0.48);
+    for (let index = start; index <= end; index++) {
+      const line = lines[index];
+      for (const entries of splitLineIntoSegments(line)) {
+        const x = entries[0].rect.x;
+        let columnIndex = 0;
+        let distance = Infinity;
+        anchors.forEach((anchor, candidate) => {
+          const candidateDistance = Math.abs(anchor - x);
+          if (candidateDistance < distance) {
+            distance = candidateDistance;
+            columnIndex = candidate;
+          }
+        });
+        if (distance > assignmentTolerance) {
+          confident = false;
+          break;
+        }
+        columns[columnIndex].push({ entries, centerY: line.centerY, x });
+      }
+      if (!confident) break;
+    }
+  }
+
+  return { end, confident, columns };
 }
 
 function hasStrongStyleChange(line, nextLine) {
@@ -142,13 +230,18 @@ function hasLargeVerticalGap(line, nextLine) {
 }
 
 function orderIntoVisualLines(items, vp) {
+  const topMargin = vp.height * 0.08;
+  const bottomMargin = vp.height * 0.92;
   const positioned = items
     .map((item, index) => ({ item, index, rect: itemRect(item, vp) }))
-    .filter(({ item, rect }) =>
-      item.str?.trim() &&
-      Number.isFinite(rect.x) && Number.isFinite(rect.y) &&
-      rect.w > 0 && rect.h > 0
-    )
+    .filter(({ item, rect }) => {
+      if (!item.str?.trim() ||
+          !Number.isFinite(rect.x) || !Number.isFinite(rect.y) ||
+          rect.w <= 0 || rect.h <= 0) return false;
+      if (state.readHeadersFooters) return true;
+      const centerY = rect.y + rect.h / 2;
+      return centerY >= topMargin && centerY <= bottomMargin;
+    })
     .sort((a, b) => (a.rect.y + a.rect.h / 2) - (b.rect.y + b.rect.h / 2));
 
   const lines = [];
@@ -170,7 +263,7 @@ function orderIntoVisualLines(items, vp) {
   return lines;
 }
 
-function rangeRect(start, end, map, items, vp) {
+function rangeRect(function rangeRect(start, end, map, items, vp) {
   const rects = [];
   map.filter(m => m.e > start && m.s < end).forEach(m => {
     const item = items[m.i];

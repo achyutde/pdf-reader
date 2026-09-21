@@ -31,5 +31,7 @@ export const state = {
   scannedPages:   0,
   progressScanId: 0,
   readingFinished: false,
+  readHeadersFooters: false,
+  tableMode: 'columns',
   annotationTool: 'move',
 };

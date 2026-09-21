@@ -3,11 +3,11 @@
 // export to JSON file, import from JSON file
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.3';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.3';
-import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.3';
-import { toast } from './ui.js?v=2.3.3';
-import { renderAnnotations } from './annotations.js?v=2.3.3';
+import { state } from './state.js?v=2.3.4';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.4';
+import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.4';
+import { toast } from './ui.js?v=2.3.4';
+import { renderAnnotations } from './annotations.js?v=2.3.4';
 
 // ─── Storage helpers ──────────────────────────────────
 const bmKey       = ()  => 'bm:' + state.fileName;
@@ -116,10 +116,12 @@ export async function exportBMs() {
   }
   const json = JSON.stringify({
     format: 'pdf-reader-backup',
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     settings: {
       readingSpeed: state.rate,
+      readHeadersFooters: state.readHeadersFooters,
+      tableMode: state.tableMode,
     },
     entries,
   }, null, 2);
@@ -227,10 +229,27 @@ export function importBMs(input) {
 
       const importedSpeed = Number.parseFloat(data?.settings?.readingSpeed);
       const speedImported = Number.isFinite(importedSpeed) && setSpeed(importedSpeed);
+      let readingSettingsImported = false;
+
+      if (typeof data?.settings?.readHeadersFooters === 'boolean') {
+        state.readHeadersFooters = data.settings.readHeadersFooters;
+        localStorage.setItem('reader:readHeadersFooters',
+          String(state.readHeadersFooters));
+        readingSettingsImported = true;
+      }
+      if (['columns', 'skip'].includes(data?.settings?.tableMode)) {
+        state.tableMode = data.settings.tableMode;
+        localStorage.setItem('reader:tableMode', state.tableMode);
+        readingSettingsImported = true;
+      }
+      if (readingSettingsImported) {
+        window.dispatchEvent(new CustomEvent('reader-settings-imported'));
+      }
 
       renderAnnotations();
       const speedMessage = speedImported ? `, speed ${state.rate}×` : '';
-      toast(`Imported ${bookmarkCount} bookmark(s), ${annotationCount} annotation(s)${speedMessage} ✓`);
+      const settingsMessage = readingSettingsImported ? ', reading settings' : '';
+      toast(`Imported ${bookmarkCount} bookmark(s), ${annotationCount} annotation(s)${speedMessage}${settingsMessage} ✓`);
       openBM();
     } catch {
       toast('Invalid reader data file');
