@@ -2,9 +2,9 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.5';
-import { updateProgress } from './progress.js?v=2.3.5';
-import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.5';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.8';
+import { updateProgress } from './progress.js?v=2.3.8';
+import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.8';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');

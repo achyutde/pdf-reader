@@ -2,22 +2,22 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js?v=2.3.5';
-import { startProgressScan }                              from './progress.js?v=2.3.5';
+import { state }                                          from './state.js?v=2.3.8';
+import { startProgressScan }                              from './progress.js?v=2.3.8';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.5';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.8';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
          hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.3.5';
-import { changePage, jumpTo }                   from './navigation.js?v=2.3.5';
+         startFrom, speakAt }                             from './speech.js?v=2.3.8';
+import { changePage, jumpTo }                   from './navigation.js?v=2.3.8';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.5';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.8';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js?v=2.3.5';
+         updateReturnBtn }                                from './ui.js?v=2.3.8';
 import { initAnnotations, toggleAnnotationPanel,
-         resetAnnotationUI }                              from './annotations.js?v=2.3.5';
+         resetAnnotationUI }                              from './annotations.js?v=2.3.8';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -451,9 +451,20 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') exitReading();
 });
 
+// Suppress browser double-/triple-tap zoom without changing the reader's
+// pointer-based single-tap, swipe, or annotation gestures.
+let lastTouchEnd = 0;
+document.addEventListener('touchend', event => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 350) event.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+document.addEventListener('dblclick', event => {
+  event.preventDefault();
+}, { passive: false });
+
 // Auto-save position on page hide / close
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') savePosition();
 });
 window.addEventListener('beforeunload', savePosition);
-

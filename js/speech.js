@@ -2,8 +2,8 @@
 // Text-to-speech engine: play, pause, resume, stop
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.5';
-import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.3.5';
+import { state } from './state.js?v=2.3.8';
+import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.3.8';
 
 const playb   = document.getElementById('playb');
 const fabPlay = document.getElementById('fab-play');

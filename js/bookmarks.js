@@ -3,11 +3,11 @@
 // export to JSON file, import from JSON file
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.5';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.5';
-import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.5';
-import { toast } from './ui.js?v=2.3.5';
-import { renderAnnotations } from './annotations.js?v=2.3.5';
+import { state } from './state.js?v=2.3.8';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.8';
+import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.8';
+import { toast } from './ui.js?v=2.3.8';
+import { renderAnnotations } from './annotations.js?v=2.3.8';
 
 // ─── Storage helpers ──────────────────────────────────
 const bmKey       = ()  => 'bm:' + state.fileName;
@@ -15,6 +15,22 @@ const getBMs      = ()  => { try { return JSON.parse(localStorage.getItem(bmKey(
 const getBMsByKey = k   => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
 const putBMs      = bms => localStorage.setItem(bmKey(), JSON.stringify(bms));
 const esc         = s   => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+let importedBackupFileName = '';
+
+function ensureJsonName(name) {
+  const clean = String(name || '').trim();
+  if (!clean) return '';
+  return /\.json$/i.test(clean) ? clean : `${clean}.json`;
+}
+
+function exportFileName() {
+  if (importedBackupFileName) return importedBackupFileName;
+  const pdfName = String(state.fileName || '')
+    .replace(/\.pdf$/i, '')
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+    .trim();
+  return `${pdfName || 'pdf-reader'}-data.json`;
+}
 
 // ─── Add ──────────────────────────────────────────────
 export function addBM() {
@@ -23,8 +39,10 @@ export function addBM() {
   const wi = Math.max(0, state.curWord);
   const sentence = state.sentences[si];
   const start = sentence?.words?.[wi]?.start || 0;
-  const snip = sentence?.text?.slice(start, start + 60) || `Page ${state.curPage}`;
-  const label = `Page ${state.curPage} — "${snip}${snip.length >= 60 ? '…' : ''}"`;
+  const snip = sentence?.text?.slice(start, start + 60);
+  const label = snip
+    ? `"${snip}${snip.length >= 60 ? '…' : ''}" — Page ${state.curPage}`
+    : `Page ${state.curPage}`;
   const bms  = getBMs();
   if (bms.find(b => b.page === state.curPage && b.si === si && (b.wi || 0) === wi)) {
     toast('Already bookmarked!'); return;
@@ -108,6 +126,7 @@ function delBM(i) {
 
 // ─── Export bookmarks and annotations to one JSON file ─
 export async function exportBMs() {
+  const fileName = exportFileName();
   const entries = {};
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -129,7 +148,7 @@ export async function exportBMs() {
   if (window.showSaveFilePicker) {
     try {
       const handle = await window.showSaveFilePicker({
-        suggestedName: 'pdf-reader-data.json',
+        suggestedName: fileName,
         types: [{ description: 'JSON File', accept: { 'application/json': ['.json'] } }],
       });
       const writable = await handle.createWritable();
@@ -142,7 +161,7 @@ export async function exportBMs() {
     }
   }
 
-  const file = new File([json], 'pdf-reader-data.json', { type: 'application/json' });
+  const file = new File([json], fileName, { type: 'application/json' });
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file] });
@@ -246,6 +265,7 @@ export function importBMs(input) {
         window.dispatchEvent(new CustomEvent('reader-settings-imported'));
       }
 
+      importedBackupFileName = ensureJsonName(file.name);
       renderAnnotations();
       const speedMessage = speedImported ? `, speed ${state.rate}×` : '';
       const settingsMessage = readingSettingsImported ? ', reading settings' : '';
