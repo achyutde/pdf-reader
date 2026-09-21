@@ -413,7 +413,7 @@ body.reading #controls { transform: translateY(120%); }
 #saveb:active { background: #e94560; }
 #saveb:disabled { opacity: 0.28; cursor: default; }
 
-@media (max-width: 720px) {@media (max-width: 720px) {
+@media (max-width: 720px) {
   #controls { gap: 4px; padding-left: 7px; padding-right: 7px; }
   #bottom-brand { gap: 2px; font-size: 11px; }
   #playback-controls { gap: 4px; }
