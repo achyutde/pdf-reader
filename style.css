@@ -132,11 +132,11 @@ body.reading #app-menu { display: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 12px 158px;
+  padding: 20px 12px 138px;
   -webkit-overflow-scrolling: touch;
   transition: padding-bottom 0.28s;
 }
-body.reading #content { padding-bottom: 90px; }
+body.reading #content { padding-bottom: 70px; }
 
 /* Drop zone */
 #drop-zone {
@@ -208,7 +208,7 @@ body.fit-width #content { padding-left: 0; padding-right: 0; }
   position: fixed;
   left: 8px;
   right: 8px;
-  bottom: 148px;
+  bottom: 128px;
   z-index: 320;
   gap: 6px;
   padding: 8px;
@@ -241,7 +241,7 @@ body.annotating-draw #hl-canvas { touch-action: none; cursor: crosshair; }
 #ticker {
   position: fixed;
   left: 0; right: 0;
-  bottom: 138px;
+  bottom: 118px;
   background: rgba(10, 38, 75, 0.97);
   border-top: 1px solid #0f3460;
   padding: 8px 20px;
@@ -254,7 +254,7 @@ body.annotating-draw #hl-canvas { touch-action: none; cursor: crosshair; }
   z-index: 150;
   transition: bottom 0.28s;
 }
-body.reading #ticker { bottom: 68px; }
+body.reading #ticker { bottom: 48px; }
 
 /* ═══ PAGE SCRUBBER ═══ */
 #page-scrubber {
@@ -263,28 +263,27 @@ body.reading #ticker { bottom: 68px; }
   left: 0;
   right: 0;
   bottom: calc(var(--bottom-bar-height) + 26px);
-  height: 42px;
+  height: 22px;
   padding: 0;
   background: rgba(22, 33, 62, 0.98);
-  border-top: 1px solid #0f3460;
   z-index: 206;
 }
-#page-scrubber.on {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
+#page-scrubber.on { display: block; }
 #page-slider {
-  order: 1;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: block;
   width: 100%;
-  height: 24px;
+  height: 4px;
   margin: 0;
   padding: 0;
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
   cursor: pointer;
+  overflow: visible;
 }
 #page-slider::-webkit-slider-runnable-track {
   width: 100%;
@@ -317,16 +316,6 @@ body.reading #ticker { bottom: 68px; }
   background: #e94560;
   box-shadow: 0 1px 5px rgba(0,0,0,0.55);
 }
-#page-slider-label {
-  order: 2;
-  height: 18px;
-  color: #d6e1ef;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
-  text-align: center;
-  white-space: nowrap;
-}
 #page-slider:disabled { opacity: 0.35; cursor: default; }
 body.reading #page-scrubber { bottom: 26px; }
 
@@ -334,7 +323,8 @@ body.reading #page-scrubber { bottom: 26px; }
 #reading-progress {
   display: none;
   position: fixed;
-  left: 0; right: 0;
+  left: 0;
+  right: 0;
   bottom: var(--bottom-bar-height);
   height: 26px;
   background: rgba(22, 33, 62, 0.98);
@@ -342,19 +332,11 @@ body.reading #page-scrubber { bottom: 26px; }
   pointer-events: none;
 }
 #reading-progress.on { display: block; }
-#progress-meta {
-  height: 22px;
-  padding: 3px 12px 2px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: #8fa6c4;
-  font-size: 11px;
-}
-#progress-percent { color: #d6e1ef; font-weight: 600; }
 #progress-track {
   position: absolute;
-  left: 0; right: 0; bottom: 0;
+  left: 0;
+  right: 0;
+  top: 0;
   height: 4px;
   background: rgba(15, 52, 96, 0.9);
 }
@@ -363,6 +345,34 @@ body.reading #page-scrubber { bottom: 26px; }
   height: 100%;
   background: #e94560;
   transition: width 0.25s ease;
+}
+#progress-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  height: 22px;
+  padding: 3px 12px 2px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  color: #8fa6c4;
+  font-size: 11px;
+}
+#progress-percent {
+  justify-self: start;
+  color: #d6e1ef;
+  font-weight: 600;
+}
+#page-slider-label {
+  justify-self: center;
+  color: #d6e1ef;
+  font-weight: 600;
+  white-space: nowrap;
+}
+#progress-remaining {
+  justify-self: end;
+  white-space: nowrap;
 }
 body.reading #reading-progress { bottom: 0; }
 
@@ -486,7 +496,7 @@ body.reading #fab { display: flex; }
 #fab-play {
   display: none;
   position: fixed;
-  bottom: 82px; right: 14px;
+  bottom: 62px; right: 14px;
   width: 52px; height: 52px;
   border-radius: 50%;
   background: rgba(233, 69, 96, 0.88);
@@ -531,7 +541,7 @@ body.reading .edge-btn { display: flex; }
 #return-btn {
   display: none;
   position: fixed;
-  bottom: 158px;     /* above controls, scrubber, progress, and ticker */
+  bottom: 138px;     /* above controls, scrubber, progress, and ticker */
   left: 14px;
   height: 38px;
   padding: 0 14px;
@@ -553,7 +563,7 @@ body.reading .edge-btn { display: flex; }
 #return-btn.on { display: flex; }
 #return-btn:active { opacity: 0.8; }
 /* In focus mode controls are hidden so we can sit at the bottom */
-body.reading #return-btn { bottom: 148px; }
+body.reading #return-btn { bottom: 128px; }
 
 /* ═══ TAP CONFIRMATION POPUP ═══ */
 #tap-menu {
