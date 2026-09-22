@@ -2,7 +2,7 @@
 // Reading progress and approximate time remaining
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.8';
+import { state } from './state.js?v=2.3.9';
 
 const BASE_WORDS_PER_MINUTE = 180;
 const FALLBACK_WORDS_PER_PAGE = 250;
@@ -57,10 +57,9 @@ function formatRemaining(minutes) {
 
 export function updateProgress() {
   const wrap = document.getElementById('reading-progress');
-  const fill = document.getElementById('progress-fill');
   const percentEl = document.getElementById('progress-percent');
   const remainingEl = document.getElementById('progress-remaining');
-  if (!wrap || !fill || !percentEl || !remainingEl) return;
+  if (!wrap || !percentEl || !remainingEl) return;
 
   if (!state.pdf) {
     wrap.classList.remove('on');
@@ -71,7 +70,6 @@ export function updateProgress() {
   const exact = exactWordProgress();
   const fraction = exact ?? positionFraction();
   const percent = Math.round(fraction * 100);
-  fill.style.width = `${percent}%`;
   wrap.setAttribute('aria-valuenow', String(percent));
   percentEl.textContent = `${percent}%`;
 
@@ -93,7 +91,7 @@ export async function startProgressScan() {
   state.scannedPages = 0;
   updateProgress();
 
-  const { getPageSentences } = await import('./pdf.js?v=2.3.8');
+  const { getPageSentences } = await import('./pdf.js?v=2.3.9');
 
   for (let pageNumber = 1; pageNumber <= state.numPages; pageNumber++) {
     if (scanId !== state.progressScanId || !state.pdf) return;

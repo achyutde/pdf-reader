@@ -3,11 +3,11 @@
 // export to JSON file, import from JSON file
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.8';
-import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.8';
-import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.8';
-import { toast } from './ui.js?v=2.3.8';
-import { renderAnnotations } from './annotations.js?v=2.3.8';
+import { state } from './state.js?v=2.3.9';
+import { renderPage, clearHL, drawHL, showTicker, savePosition } from './pdf.js?v=2.3.9';
+import { hardStop, startFrom, updateBtn, setSpeed } from './speech.js?v=2.3.9';
+import { toast } from './ui.js?v=2.3.9';
+import { renderAnnotations } from './annotations.js?v=2.3.9';
 
 // ─── Storage helpers ──────────────────────────────────
 const bmKey       = ()  => 'bm:' + state.fileName;
@@ -76,11 +76,20 @@ export function openBM() {
         <div class="bm-date">${new Date(bm.ts).toLocaleDateString(undefined,
           { month: 'short', day: 'numeric', year: 'numeric' })}</div>`;
 
+      const edit = document.createElement('button');
+      edit.className = 'bm-edit';
+      edit.textContent = '✎';
+      edit.title = 'Rename bookmark';
+      edit.setAttribute('aria-label', `Rename ${bm.label}`);
+      edit.addEventListener('click', e => { e.stopPropagation(); editBM(realIdx); });
+
       const del = document.createElement('button');
       del.className = 'bm-del'; del.textContent = '✕';
+      del.title = 'Delete bookmark';
+      del.setAttribute('aria-label', `Delete ${bm.label}`);
       del.addEventListener('click', e => { e.stopPropagation(); delBM(realIdx); });
 
-      row.append(ico, txt, del);
+      row.append(ico, txt, edit, del);
       row.addEventListener('click', () => gotoBM(bm));
       items.appendChild(row);
     });
@@ -124,6 +133,23 @@ function delBM(i) {
   openBM(); // refresh the sheet
 }
 
+function editBM(i) {
+  const bms = getBMs();
+  const bookmark = bms[i];
+  if (!bookmark) return;
+  const nextLabel = window.prompt('Bookmark name', bookmark.label);
+  if (nextLabel === null) return;
+  const cleanLabel = nextLabel.trim();
+  if (!cleanLabel) {
+    toast('Bookmark name cannot be empty');
+    return;
+  }
+  bookmark.label = cleanLabel;
+  putBMs(bms);
+  openBM();
+  toast('Bookmark renamed ✓');
+}
+
 // ─── Export bookmarks and annotations to one JSON file ─
 export async function exportBMs() {
   const fileName = exportFileName();
@@ -135,12 +161,13 @@ export async function exportBMs() {
   }
   const json = JSON.stringify({
     format: 'pdf-reader-backup',
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     settings: {
       readingSpeed: state.rate,
       readHeadersFooters: state.readHeadersFooters,
       tableMode: state.tableMode,
+      theme: document.body.dataset.theme || 'midnight',
     },
     entries,
   }, null, 2);
@@ -259,6 +286,10 @@ export function importBMs(input) {
       if (['columns', 'rows', 'skip'].includes(data?.settings?.tableMode)) {
         state.tableMode = data.settings.tableMode;
         localStorage.setItem('reader:tableMode', state.tableMode);
+        readingSettingsImported = true;
+      }
+      if (['midnight', 'charcoal', 'purple', 'sepia'].includes(data?.settings?.theme)) {
+        localStorage.setItem('reader:theme', data.settings.theme);
         readingSettingsImported = true;
       }
       if (readingSettingsImported) {

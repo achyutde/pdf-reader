@@ -2,22 +2,22 @@
 // Entry point: app init and all event wiring
 // ─────────────────────────────────────────────────────
 
-import { state }                                          from './state.js?v=2.3.8';
-import { startProgressScan }                              from './progress.js?v=2.3.8';
+import { state }                                          from './state.js?v=2.3.9';
+import { startProgressScan }                              from './progress.js?v=2.3.9';
 import { renderPage, enableControls, savePosition,
          checkSavedPosition, clearHL, drawHL,
-         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.8';
+         showTicker, findWordAtPoint }                                     from './pdf.js?v=2.3.9';
 import { refreshVoices, setVoice, togglePlay, cancelTTS,
-         hardStop, updateBtn, setSpeed, injectDeps,
-         startFrom, speakAt }                             from './speech.js?v=2.3.8';
-import { changePage, jumpTo }                   from './navigation.js?v=2.3.8';
+         hardStop, stopReading, updateBtn, setSpeed, injectDeps,
+         startFrom, speakAt }                             from './speech.js?v=2.3.9';
+import { changePage, jumpTo }                   from './navigation.js?v=2.3.9';
 import { addBM, openBM, closeBM,
-         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.8';
+         exportBMs, importBMs }                           from './bookmarks.js?v=2.3.9';
 import { enterReading, exitReading, toggleView, toast,
          doResume, dismissResume,
-         updateReturnBtn }                                from './ui.js?v=2.3.8';
+         updateReturnBtn }                                from './ui.js?v=2.3.9';
 import { initAnnotations, toggleAnnotationPanel,
-         resetAnnotationUI }                              from './annotations.js?v=2.3.8';
+         resetAnnotationUI }                              from './annotations.js?v=2.3.9';
 
 // ─── PDF.js worker ────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -33,6 +33,15 @@ if (storedRate !== null) setSpeed(storedRate);
 
 const headersFootersToggle = document.getElementById('read-headers-footers');
 const tableModeSelect = document.getElementById('table-mode');
+const themeSelect = document.getElementById('theme-select');
+const availableThemes = ['midnight', 'charcoal', 'purple', 'sepia'];
+
+function applyTheme(theme) {
+  const selected = availableThemes.includes(theme) ? theme : 'midnight';
+  document.body.dataset.theme = selected;
+  themeSelect.value = selected;
+  return selected;
+}
 
 function loadReadingOrderSettings() {
   state.readHeadersFooters = localStorage.getItem('reader:readHeadersFooters') === 'true';
@@ -42,6 +51,7 @@ function loadReadingOrderSettings() {
     : 'columns';
   headersFootersToggle.checked = state.readHeadersFooters;
   tableModeSelect.value = state.tableMode;
+  applyTheme(localStorage.getItem('reader:theme'));
 }
 loadReadingOrderSettings();
 
@@ -283,6 +293,7 @@ document.getElementById('open-pdf-btn').addEventListener('click', () => {
   setAppMenu(false);
   fileInput.click();
 });
+document.getElementById('drop-open-pdf').addEventListener('click', () => fileInput.click());
 document.addEventListener('click', event => {
   if (appMenu.classList.contains('on') &&
       !appMenu.contains(event.target) &&
@@ -298,9 +309,8 @@ fileInput.addEventListener('change', e => {
   e.target.value = '';
 });
 
-// Top bar
+// Bookmarks and menu actions
 document.getElementById('bm-btn').addEventListener('click', () => {
-  setAppMenu(false);
   openBM();
 });
 document.getElementById('saveb').addEventListener('click', addBM);
@@ -358,6 +368,7 @@ document.getElementById('edge-next').addEventListener('click', () => changePage(
 document.getElementById('prev-pg').addEventListener('click', () => changePage(-1));
 document.getElementById('playb').addEventListener('click', togglePlay);
 document.getElementById('next-pg').addEventListener('click', () => changePage(1));
+document.getElementById('stopb').addEventListener('click', stopReading);
 document.getElementById('speed-select').addEventListener('change',
   function() { setSpeed(this.value); setAppMenu(false); });
 document.getElementById('voice-sel').addEventListener('change',
@@ -382,6 +393,11 @@ tableModeSelect.addEventListener('change', function() {
     skip: 'Tables skipped',
   };
   reprocessReadingOrder(messages[state.tableMode]);
+});
+themeSelect.addEventListener('change', function() {
+  const selected = applyTheme(this.value);
+  localStorage.setItem('reader:theme', selected);
+  toast(`${this.options[this.selectedIndex].text} theme applied`);
 });
 window.addEventListener('reader-settings-imported', () => {
   loadReadingOrderSettings();

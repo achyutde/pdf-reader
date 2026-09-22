@@ -2,9 +2,9 @@
 // PDF rendering, sentence/word parsing, highlight, position
 // ─────────────────────────────────────────────────────
 
-import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.8';
-import { updateProgress } from './progress.js?v=2.3.8';
-import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.8';
+import { state, PAGE_SCALE, HIGHLIGHT_WORDS } from './state.js?v=2.3.9';
+import { updateProgress } from './progress.js?v=2.3.9';
+import { syncAnnotationCanvas, renderAnnotations } from './annotations.js?v=2.3.9';
 
 const pdfCanvas  = document.getElementById('pdf-canvas');
 const hlCanvas   = document.getElementById('hl-canvas');
@@ -374,7 +374,7 @@ export function showTicker(text) {
 }
 
 export function enableControls() {
-  ['playb', 'prev-pg', 'next-pg', 'saveb', 'view-btn', 'annotate-btn']
+  ['playb', 'stopb', 'prev-pg', 'next-pg', 'saveb', 'view-btn', 'annotate-btn']
     .forEach(id => { document.getElementById(id).disabled = false; });
 }
 

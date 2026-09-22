@@ -2,8 +2,8 @@
 // Text-to-speech engine: play, pause, resume, stop
 // ─────────────────────────────────────────────────────
 
-import { state } from './state.js?v=2.3.8';
-import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.3.8';
+import { state } from './state.js?v=2.3.9';
+import { renderPage, clearHL, drawHL, showTicker, getPageSentences } from './pdf.js?v=2.3.9';
 
 const playb   = document.getElementById('playb');
 const fabPlay = document.getElementById('fab-play');
@@ -41,7 +41,9 @@ export function togglePlay() {
   } else if (state.mode === 'paused') {
     startFrom(state.pausePage, state.pauseSent, state.pauseWord);
   } else {
-    startFrom(state.curPage, Math.max(0, state.curSent), Math.max(0, state.curWord));
+    startFrom(state.pausePage || state.curPage,
+      Math.max(0, state.pauseSent ?? state.curSent),
+      Math.max(0, state.pauseWord ?? state.curWord));
   }
 }
 
@@ -177,20 +179,43 @@ export function hardStop() {
   updateReturn();
 }
 
+export function stopReading() {
+  if (!state.pdf) return;
+  state.pausePage = state.ttsPage ?? state.curPage;
+  state.pauseSent = Math.max(0, state.curSent);
+  state.pauseWord = Math.max(0, state.curWord);
+  cancelTTS();
+  state.mode = 'stopped';
+  state.ttsPage = null;
+  state.ttsSentences = [];
+  clearHL();
+  ticker.style.display = 'none';
+  updateBtn();
+  updateReturn();
+  savePos();
+  toast('Stopped — tap ▶ to continue');
+}
+
 export function updateBtn() {
   if (state.mode === 'speaking') {
-    playb.textContent = '⏸ Pause';
-    playb.className = 'cb playing';
+    playb.textContent = '⏸';
+    playb.className = 'cb play-toggle playing';
+    playb.setAttribute('aria-label', 'Pause reading');
+    playb.title = 'Pause reading';
     fabPlay.textContent = '⏸';
     fabPlay.style.background = 'rgba(192,57,43,0.88)';
   } else if (state.mode === 'paused') {
-    playb.textContent = '▶ Resume';
-    playb.className = 'cb paused';
+    playb.textContent = '▶';
+    playb.className = 'cb play-toggle paused';
+    playb.setAttribute('aria-label', 'Resume reading');
+    playb.title = 'Resume reading';
     fabPlay.textContent = '▶';
     fabPlay.style.background = 'rgba(83,52,131,0.88)';
   } else {
-    playb.textContent = '▶ Read';
-    playb.className = 'cb';
+    playb.textContent = '▶';
+    playb.className = 'cb play-toggle';
+    playb.setAttribute('aria-label', 'Start reading');
+    playb.title = 'Start reading';
     fabPlay.textContent = '▶';
     fabPlay.style.background = 'rgba(233,69,96,0.88)';
   }
