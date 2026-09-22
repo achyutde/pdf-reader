@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>PDF Reader</title>
-  <link rel="stylesheet" href="style.css?v=2.3.8" />
+  <link rel="stylesheet" href="style.css?v=2.3.9" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
@@ -14,7 +14,6 @@
         aria-controls="app-menu" aria-expanded="false">☰</button>
 <div id="app-menu" aria-hidden="true">
   <button class="menu-action primary" id="open-pdf-btn">📂 Open PDF</button>
-  <button class="menu-action" id="bm-btn" disabled>🔖 Bookmarks</button>
   <button class="menu-action" id="annotate-btn" disabled>✏️ Annotate</button>
   <button class="menu-action" id="view-btn" disabled>↔ Fit Width</button>
   <button class="menu-action" id="focus-btn" disabled>⛶ Focus</button>
@@ -58,6 +57,15 @@
       <option value="skip">Skip tables</option>
     </select>
   </div>
+  <div class="menu-field">
+    <label for="theme-select">Theme</label>
+    <select id="theme-select" aria-label="Menu and toolbar theme">
+      <option value="midnight" selected>Midnight</option>
+      <option value="charcoal">Charcoal</option>
+      <option value="purple">Purple</option>
+      <option value="sepia">Sepia</option>
+    </select>
+  </div>
 </div>
 <input type="file" id="file-input" accept="application/pdf" />
 
@@ -97,7 +105,8 @@
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
       <polyline points="14 2 14 8 20 8"/>
     </svg>
-    <p>Tap <strong>☰ → Open PDF</strong><br/>to load a file from your Files app</p>
+    <p>Load a PDF to begin reading</p>
+    <button id="drop-open-pdf" type="button">📂 Open PDF</button>
   </div>
 
   <div id="canvas-wrap">
@@ -129,7 +138,7 @@
          step="1" disabled aria-label="Go to page" />
 </div>
 
-<!-- Reading progress (stays visible in focus mode) -->
+<!-- Reading progress details (stay visible in focus mode) -->
 <div id="reading-progress" role="progressbar" aria-label="PDF reading progress"
      aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
   <div id="progress-meta">
@@ -137,24 +146,27 @@
     <span id="page-slider-label">Page — of —</span>
     <span id="progress-remaining">Calculating…</span>
   </div>
-  <div id="progress-track"><div id="progress-fill"></div></div>
 </div>
 
 <!-- Bottom toolbar -->
 <div id="controls">
-  <div id="bottom-brand" aria-label="PDF Reader version 2.3.8">
+  <div id="bottom-brand" aria-label="PDF Reader version 2.3.9">
     <span class="brand-icon">📖</span>
     <span class="brand-name">PDF Reader</span>
-    <span id="app-version">v2.3.8</span>
+    <span id="app-version">v2.3.9</span>
   </div>
 
   <div id="playback-controls">
     <button class="cb page-control" id="prev-pg" disabled aria-label="Previous page" title="Previous page">◀</button>
-    <button class="cb" id="playb" disabled>▶ Read</button>
+    <button class="cb play-toggle" id="playb" disabled aria-label="Start reading" title="Start reading">▶</button>
     <button class="cb page-control" id="next-pg" disabled aria-label="Next page" title="Next page">▶</button>
+    <button class="cb stop-control" id="stopb" disabled aria-label="Stop reading" title="Stop reading">■</button>
   </div>
 
   <div id="bottom-actions">
+    <button id="bm-btn" disabled title="View bookmarks" aria-label="View bookmarks">
+      🔖 <span class="bookmark-list-label">Bookmarks</span>
+    </button>
     <button id="saveb" disabled title="Add bookmark">
       🔖 <span class="bookmark-label">Add Bookmark</span>
     </button>
@@ -178,6 +190,6 @@
 <!-- Toast -->
 <div id="toast"></div>
 
-<script type="module" src="js/main.js?v=2.3.8"></script>
+<script type="module" src="js/main.js?v=2.3.9"></script>
 </body>
 </html>
