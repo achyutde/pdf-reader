@@ -63,25 +63,28 @@ function parseSentences(items, vp) {
     txt += part.separator;
   });
 
-  const rx = /[^.!?…,:;—–\n]+(?:[.!?…,:;—–]+["']?(?=\s|$)|\n)|[^.!?…,:;—–\n]+$/g;
-  const chunks = txt.match(rx) || [txt];
+  // Lazy body + lookahead: a delimiter only ends a chunk when it's actually
+  // followed by whitespace/end. A comma/period butted against a digit (as in
+  // "20,000" or "3.14") just gets absorbed into the body instead of being an
+  // unmatched dead end, so no text is silently dropped mid-sentence.
+  const rx = /[^\n]*?[.!?…,:;—–]+["']?(?=\s|$)|[^\n]+/g;
   const sentences = [];
   const sentRects = [];
-  let cur = 0;
 
-  chunks.forEach(raw => {
+  for (const match of txt.matchAll(rx)) {
+    const raw = match[0];
     const text = raw.trim();
-    if (!text) { cur += raw.length; return; }
+    if (!text) continue;
     const leading = raw.indexOf(text);
-    const a = cur + leading;
+    const a = match.index + leading;
     const b = a + text.length;
     const hits = map.filter(m => m.e > a && m.s < b);
     const words = [];
-    for (const match of text.matchAll(/\S+/g)) {
-      const start = match.index;
-      const end = start + match[0].length;
+    for (const wordMatch of text.matchAll(/\S+/g)) {
+      const start = wordMatch.index;
+      const end = start + wordMatch[0].length;
       words.push({
-        text: match[0],
+        text: wordMatch[0],
         start,
         end,
         rect: rangeRect(a + start, a + end, map, items, vp),
@@ -89,8 +92,7 @@ function parseSentences(items, vp) {
     }
     sentences.push({ text, words });
     sentRects.push(unionRects(hits.map(m => itemRect(items[m.i], vp))));
-    cur += raw.length;
-  });
+  }
   return { sentences, sentRects };
 }
 
